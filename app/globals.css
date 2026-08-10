@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+:root {
+  /* Cozy hearth warmth — amber, walnut, soft ember. Grounded, not pink. */
+  --background: #f3ebe0;
+  --foreground: #2a2118;
+  --muted: #6a5848;
+  --surface: rgba(255, 250, 243, 0.82);
+  --surface-border: rgba(74, 52, 32, 0.12);
+  --accent: #d6455d;
+  --accent-soft: #f5c4cd;
+  --accent-deep: #b8334a;
+  --ember: #b4532a;
+  --honey: #d4a15a;
+  --shadow: 0 12px 28px rgba(58, 36, 18, 0.1);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-surface: var(--surface);
+  --color-surface-border: var(--surface-border);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-deep: var(--accent-deep);
+  --color-ember: var(--ember);
+  --color-honey: var(--honey);
+  --font-sans: var(--font-nunito);
+  --font-display: var(--font-fraunces);
+}
+
+body {
+  background:
+    radial-gradient(ellipse 90% 55% at 0% -5%, #efc99a 0%, transparent 52%),
+    radial-gradient(ellipse 70% 50% at 100% 0%, #e8d2b0 0%, transparent 48%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, #dfc4a0 0%, transparent 55%),
+    linear-gradient(180deg, #f6efe6 0%, #efe4d4 50%, #e8dccb 100%);
+  color: var(--foreground);
+  font-family: var(--font-nunito), ui-sans-serif, sans-serif;
+  min-height: 100%;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes soft-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.55s ease-out both;
+}
+
+.animate-soft-pop {
+  animation: soft-pop 0.45s ease-out both;
+}
