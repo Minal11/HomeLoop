@@ -1,17 +1,21 @@
 /**
  * Public site origin for auth redirects (password reset, etc.).
- * Prefer NEXT_PUBLIC_SITE_URL so local and production stay configurable.
+ *
+ * In the browser, always use the current origin so production never
+ * accidentally sends recovery links to localhost.
+ * On the server, prefer NEXT_PUBLIC_SITE_URL when set.
  */
 export function getSiteUrl(): string {
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin.replace(/\/$/, "");
+  }
+
   const configured = process.env.NEXT_PUBLIC_SITE_URL?.trim();
   if (configured) {
     return configured.replace(/\/$/, "");
   }
 
-  if (typeof window !== "undefined" && window.location.origin) {
-    return window.location.origin;
-  }
-
+  // Server-side fallback for local tooling only.
   return "http://localhost:3000";
 }
 

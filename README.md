@@ -119,28 +119,26 @@ While signed in as your user, you should only see events you own.
 
 #### Supabase URL configuration
 
-Open **Authentication → URL Configuration** and set:
+Open **Authentication → URL Configuration**.
 
-1. **Site URL** (local): `http://localhost:3000`
-2. **Redirect URLs** allow list should include:
-   - `http://localhost:3000/auth/confirm`
-   - `http://localhost:3000/auth/confirm?**`
-   - `http://localhost:3000/reset-password`
-   - `http://localhost:3000/reset-password?**`
+**Local development**
 
-For production later (Vercel), also add your production origin versions of those URLs, and set:
+1. Keep localhost redirect URLs listed (see Production Deployment for the full list).
+2. While developing locally you may temporarily set **Site URL** to `http://localhost:3000`.
 
-```bash
-NEXT_PUBLIC_SITE_URL=https://your-production-domain
-```
+**Production**
+
+After Vercel deploy, set **Site URL** to your production HTTPS origin and add matching production redirect URLs (documented under **Production Deployment** below). Keep the localhost entries so local reset still works.
 
 #### App env
 
-`.env.local` should include:
+`.env.local` (local only):
 
 ```bash
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
+
+On Vercel Production, set `NEXT_PUBLIC_SITE_URL` to the production HTTPS URL. Forgot Password also uses the browser origin when available, so recovery links stay on the current domain.
 
 #### Flow
 
@@ -173,6 +171,44 @@ HomeLoop is installable as a Progressive Web App (standalone display, app icons,
 3. Confirm install
 
 Installed HomeLoop opens at `/` in standalone mode. Sign-in cookies continue to work the same as in the browser.
+
+### Production Deployment
+
+Deploy HomeLoop from this GitHub repository to Vercel. Keep using the existing Supabase project (do not create Vercel Postgres).
+
+1. Open [Vercel](https://vercel.com) → **Add New… → Project**.
+2. Import the existing **HomeLoop** GitHub repository (`Minal11/HomeLoop`).
+3. Framework Preset: **Next.js**. Root Directory: repository root (`.`).
+4. Before the first deploy, open **Environment Variables** and add (from your local `.env.local` values — do not commit them):
+
+   | Name | Environments |
+   | --- | --- |
+   | `NEXT_PUBLIC_SUPABASE_URL` | Production, Preview, Development |
+   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Production, Preview, Development |
+   | `NEXT_PUBLIC_SITE_URL` | Production (set to the Vercel production URL after first deploy if needed) |
+
+   Local Development in Vercel can use `NEXT_PUBLIC_SITE_URL=http://localhost:3000`. Preview can use the preview deployment URL or omit it (the browser origin is used for password-reset redirects).
+
+5. Click **Deploy** and wait for the build to succeed.
+6. Copy the production URL (for example `https://homeloop-xxxx.vercel.app`).
+7. In Vercel → Project → **Settings → Environment Variables**, set Production `NEXT_PUBLIC_SITE_URL` to that exact HTTPS URL (no trailing slash), then **Redeploy**.
+8. In Supabase → **Authentication → URL Configuration**:
+   - **Site URL** (production): `https://YOUR-PRODUCTION-HOST`
+   - **Redirect URLs** (keep localhost for local dev; add production):
+     - `http://localhost:3000/**`
+     - `http://localhost:3000/auth/confirm`
+     - `http://localhost:3000/auth/confirm?**`
+     - `http://localhost:3000/reset-password`
+     - `http://localhost:3000/reset-password?**`
+     - `https://YOUR-PRODUCTION-HOST/**`
+     - `https://YOUR-PRODUCTION-HOST/auth/confirm`
+     - `https://YOUR-PRODUCTION-HOST/auth/confirm?**`
+     - `https://YOUR-PRODUCTION-HOST/reset-password`
+     - `https://YOUR-PRODUCTION-HOST/reset-password?**`
+9. Test production: login, sign up, CRUD, sign out, forgot/reset password, and PWA assets (`/manifest.webmanifest`, `/sw.js`, `/icons/*`).
+10. After production auth works, install HomeLoop from Safari (Step 9).
+
+Do not put service-role keys in Vercel. Use only the publishable Supabase key.
 
 ## Security note
 
