@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
 import EventCard from "@/components/EventCard";
+import SignOutButton from "@/components/SignOutButton";
 import { DEMO_TODAY } from "@/data/events";
 import { getEvents } from "@/lib/events";
 import type { FamilyEvent } from "@/types/event";
@@ -61,13 +62,16 @@ export default function Home() {
 
   return (
     <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col px-5 pb-28 pt-8 sm:max-w-lg sm:pt-12">
-      <header className="animate-fade-up">
-        <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          HomeLoop
-        </h1>
-        <p className="mt-2 max-w-xs text-base text-muted sm:text-lg">
-          Keep your family in the loop.
-        </p>
+      <header className="animate-fade-up flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+            HomeLoop
+          </h1>
+          <p className="mt-2 max-w-xs text-base text-muted sm:text-lg">
+            Keep your family in the loop.
+          </p>
+        </div>
+        <SignOutButton />
       </header>
 
       <main className="mt-8 flex flex-1 flex-col">

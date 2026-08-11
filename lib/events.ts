@@ -52,7 +52,10 @@ export function mapEventRowToFamilyEvent(row: EventRow): FamilyEvent {
 
 export function mapFamilyEventInputToRow(
   input: NewFamilyEventInput,
-): Omit<EventRow, "id" | "created_at" | "updated_at"> {
+): Omit<
+  EventRow,
+  "id" | "created_at" | "updated_at" | "created_by"
+> {
   return {
     title: input.title,
     start_date: input.startDate,
@@ -66,13 +69,17 @@ export function mapFamilyEventInputToRow(
   };
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+function withTimeout<T>(
+  promise: PromiseLike<T>,
+  ms: number,
+  message: string,
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
       reject(new Error(message));
     }, ms);
 
-    promise
+    Promise.resolve(promise)
       .then((value) => {
         clearTimeout(timer);
         resolve(value);
@@ -84,14 +91,30 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
   });
 }
 
+const EVENT_SELECT =
+  "id, title, start_date, start_time, end_date, end_time, assigned_to, category, location, notes, created_by, created_at, updated_at";
+
+async function requireAuthenticatedUserId(): Promise<string> {
+  const supabase = getSupabaseClient();
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error || !user) {
+    console.error("Missing authenticated user for event write:", error);
+    throw new Error("Your session has expired. Please sign in again.");
+  }
+
+  return user.id;
+}
+
 export async function getEvents(): Promise<FamilyEvent[]> {
   const supabase = getSupabaseClient();
 
   const query = supabase
     .from("events")
-    .select(
-      "id, title, start_date, start_time, end_date, end_time, assigned_to, category, location, notes, created_at, updated_at",
-    )
+    .select(EVENT_SELECT)
     .order("start_date", { ascending: true })
     .order("start_time", { ascending: true, nullsFirst: true });
 
@@ -114,14 +137,16 @@ export async function createEvent(
   input: NewFamilyEventInput,
 ): Promise<FamilyEvent> {
   const supabase = getSupabaseClient();
-  const row = mapFamilyEventInputToRow(input);
+  const userId = await requireAuthenticatedUserId();
+  const row = {
+    ...mapFamilyEventInputToRow(input),
+    created_by: userId,
+  };
 
   const { data, error } = await supabase
     .from("events")
     .insert(row)
-    .select(
-      "id, title, start_date, start_time, end_date, end_time, assigned_to, category, location, notes, created_at, updated_at",
-    )
+    .select(EVENT_SELECT)
     .single();
 
   if (error || !data) {
@@ -131,9 +156,6 @@ export async function createEvent(
 
   return mapEventRowToFamilyEvent(data);
 }
-
-const EVENT_SELECT =
-  "id, title, start_date, start_time, end_date, end_time, assigned_to, category, location, notes, created_at, updated_at";
 
 export async function getEventById(id: string): Promise<FamilyEvent | null> {
   const supabase = getSupabaseClient();
@@ -161,6 +183,7 @@ export async function updateEvent(
   input: NewFamilyEventInput,
 ): Promise<FamilyEvent> {
   const supabase = getSupabaseClient();
+  await requireAuthenticatedUserId();
   const row = mapFamilyEventInputToRow(input);
 
   const { data, error } = await supabase
@@ -180,6 +203,7 @@ export async function updateEvent(
 
 export async function deleteEvent(id: string): Promise<void> {
   const supabase = getSupabaseClient();
+  await requireAuthenticatedUserId();
 
   const { error } = await supabase.from("events").delete().eq("id", id);
 
