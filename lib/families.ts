@@ -170,6 +170,18 @@ export async function createFamily(name: string): Promise<Family> {
       throw new Error("Family was created but membership failed. Please refresh.");
     }
 
+    // Best-effort: create a schedulable person linked to this account.
+    try {
+      const { ensureLinkedFamilyPersonForCurrentUser } = await import(
+        "@/lib/family-people"
+      );
+      await ensureLinkedFamilyPersonForCurrentUser(
+        user.email?.split("@")[0],
+      );
+    } catch (linkError) {
+      console.warn("Could not auto-create linked family person:", linkError);
+    }
+
     return mapFamilyRow(family as FamilyRow);
   }
 
@@ -193,6 +205,15 @@ export async function joinFamilyByInviteCode(inviteCode: string): Promise<string
   if (error || !data) {
     console.error("Failed to join family:", error);
     throw new Error("Invalid invite code or unable to join family.");
+  }
+
+  try {
+    const { ensureLinkedFamilyPersonForCurrentUser } = await import(
+      "@/lib/family-people"
+    );
+    await ensureLinkedFamilyPersonForCurrentUser(user.email?.split("@")[0]);
+  } catch (linkError) {
+    console.warn("Could not auto-create linked family person:", linkError);
   }
 
   return data as string;

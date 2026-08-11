@@ -1,9 +1,10 @@
 import Link from "next/link";
 
 import CategoryBadge from "@/components/CategoryBadge";
-import MemberBadge from "@/components/MemberBadge";
+import PeopleBadges from "@/components/PeopleBadges";
 import type { FamilyEvent } from "@/types/event";
 import { formatEventDate, formatTime } from "@/utils/events";
+import { formatEventPeopleLabel } from "@/utils/people";
 
 type EventCardProps = {
   event: FamilyEvent;
@@ -19,6 +20,7 @@ export default function EventCard({
   const isNext = variant === "next";
   const dateLabel = formatEventDate(event);
   const timeLabel = event.startTime ? formatTime(event.startTime) : null;
+  const peopleLabel = formatEventPeopleLabel(event);
 
   return (
     <Link
@@ -62,7 +64,14 @@ export default function EventCard({
               ) : null}
             </p>
           </div>
-          <MemberBadge member={event.assignedTo} />
+          <PeopleBadges
+            label={peopleLabel}
+            names={
+              peopleLabel === "Family" || peopleLabel === "Unassigned"
+                ? undefined
+                : event.people.map((person) => person.displayName)
+            }
+          />
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-2">

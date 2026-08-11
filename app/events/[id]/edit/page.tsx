@@ -107,6 +107,7 @@ export default function EditEventPage() {
       ) : event ? (
         <EventForm
           initialValues={familyEventToFormValues(event)}
+          initialPeople={event.people}
           onSubmit={handleSubmit}
           onCancel={handleCancel}
           submitLabel="Save Changes"
