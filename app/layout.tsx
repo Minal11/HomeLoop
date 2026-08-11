@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Nunito } from "next/font/google";
+
 import "./globals.css";
 
 const nunito = Nunito({
