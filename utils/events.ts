@@ -14,16 +14,32 @@ const SECTION_LABELS: Record<EventSectionKey, string> = {
   later: "Later",
 };
 
-function parseDateOnly(isoDate: string): Date {
-  const [year, month, day] = isoDate.split("-").map(Number);
+/**
+ * Parse a Postgres `date` / ISO date-only string (YYYY-MM-DD) as a local calendar day.
+ * Avoid `new Date("YYYY-MM-DD")`, which is treated as UTC and can shift the day.
+ */
+export function parseDateOnly(isoDate: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoDate.trim());
+  if (!match) {
+    throw new Error(`Invalid date-only value: ${isoDate}`);
+  }
+
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
   return new Date(year, month - 1, day);
 }
 
-function toDateKey(date: Date): string {
+/** Local calendar date as YYYY-MM-DD (never UTC-shifted). */
+export function getLocalDateIso(date: Date = new Date()): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+}
+
+function toDateKey(date: Date): string {
+  return getLocalDateIso(date);
 }
 
 function startOfDay(date: Date): Date {
@@ -43,14 +59,54 @@ function endOfWeek(date: Date): Date {
   return addDays(date, daysUntilSunday);
 }
 
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(":").map(Number);
+  return hours * 60 + minutes;
+}
+
 function eventSortValue(event: FamilyEvent): number {
   const time = event.startTime ?? "00:00";
   return parseDateOnly(event.startDate).getTime() + timeToMinutes(time);
 }
 
-function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(":").map(Number);
-  return hours * 60 + minutes;
+/** Local start instant for sorting (date-only events use start of day). */
+function eventStartDateTime(event: FamilyEvent): Date {
+  const day = parseDateOnly(event.startDate);
+  if (!event.startTime) {
+    return day;
+  }
+
+  const [hours, minutes] = event.startTime.split(":").map(Number);
+  return new Date(
+    day.getFullYear(),
+    day.getMonth(),
+    day.getDate(),
+    hours,
+    minutes,
+    0,
+    0,
+  );
+}
+
+function isEventUpcoming(event: FamilyEvent, now: Date): boolean {
+  const eventDay = startOfDay(parseDateOnly(event.startDate));
+  const today = startOfDay(now);
+
+  if (eventDay.getTime() > today.getTime()) {
+    return true;
+  }
+
+  if (eventDay.getTime() < today.getTime()) {
+    return false;
+  }
+
+  // Same local calendar day: timed events must not have started yet;
+  // date-only events remain eligible for the rest of the day.
+  if (!event.startTime) {
+    return true;
+  }
+
+  return eventStartDateTime(event).getTime() >= now.getTime();
 }
 
 export function sortEvents(events: FamilyEvent[]): FamilyEvent[] {
@@ -102,24 +158,27 @@ export function formatEventWhen(event: FamilyEvent): string {
   return `${dateLabel} · ${formatTime(event.startTime)}`;
 }
 
+/**
+ * Next upcoming event from the user's local now.
+ * Past events (previous days, or earlier timed events today) are never Up Next.
+ */
 export function getNextEvent(
   events: FamilyEvent[],
-  todayIso: string,
+  now: Date = new Date(),
 ): FamilyEvent | null {
-  const today = startOfDay(parseDateOnly(todayIso));
-  const upcoming = sortEvents(events).filter((event) => {
-    return parseDateOnly(event.startDate).getTime() >= today.getTime();
-  });
+  const upcoming = sortEvents(events).filter((event) =>
+    isEventUpcoming(event, now),
+  );
   return upcoming[0] ?? null;
 }
 
-function getSectionKey(event: FamilyEvent, todayIso: string): EventSectionKey {
-  const today = startOfDay(parseDateOnly(todayIso));
-  const tomorrow = addDays(today, 1);
-  const weekEnd = endOfWeek(today);
+function getSectionKey(event: FamilyEvent, today: Date): EventSectionKey {
+  const todayStart = startOfDay(today);
+  const tomorrow = addDays(todayStart, 1);
+  const weekEnd = endOfWeek(todayStart);
   const eventDay = startOfDay(parseDateOnly(event.startDate));
 
-  if (toDateKey(eventDay) === toDateKey(today)) {
+  if (toDateKey(eventDay) === toDateKey(todayStart)) {
     return "today";
   }
 
@@ -127,16 +186,23 @@ function getSectionKey(event: FamilyEvent, todayIso: string): EventSectionKey {
     return "tomorrow";
   }
 
-  if (eventDay.getTime() > tomorrow.getTime() && eventDay.getTime() <= weekEnd.getTime()) {
+  if (
+    eventDay.getTime() > tomorrow.getTime() &&
+    eventDay.getTime() <= weekEnd.getTime()
+  ) {
     return "thisWeek";
   }
 
   return "later";
 }
 
+/**
+ * Group by relative day using the user's local calendar date.
+ * Pass `now` only for tests; production should use the default.
+ */
 export function groupEventsByRelativeDay(
   events: FamilyEvent[],
-  todayIso: string,
+  now: Date = new Date(),
 ): EventSection[] {
   const buckets: Record<EventSectionKey, FamilyEvent[]> = {
     today: [],
@@ -146,7 +212,7 @@ export function groupEventsByRelativeDay(
   };
 
   for (const event of sortEvents(events)) {
-    buckets[getSectionKey(event, todayIso)].push(event);
+    buckets[getSectionKey(event, now)].push(event);
   }
 
   return SECTION_ORDER.filter((key) => buckets[key].length > 0).map((key) => ({

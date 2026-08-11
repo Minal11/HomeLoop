@@ -192,10 +192,32 @@ export async function joinFamilyByInviteCode(inviteCode: string): Promise<string
 
   if (error || !data) {
     console.error("Failed to join family:", error);
-    throw new Error("Invalid invite code or unable to join family.");
+    throw new Error(friendlyJoinError(error));
   }
 
   return data as string;
+}
+
+function friendlyJoinError(error: unknown): string {
+  const message =
+    error && typeof error === "object" && "message" in error
+      ? String((error as { message?: string }).message ?? "")
+      : "";
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("already belong")) {
+    return "You’re already a member of a family.";
+  }
+
+  if (normalized.includes("invalid invite")) {
+    return "That invite code isn’t valid. Check it and try again.";
+  }
+
+  if (normalized.includes("not authenticated")) {
+    return "Your session has expired. Please sign in again.";
+  }
+
+  return "Unable to join family. Please try again.";
 }
 
 export async function getFamilyMembers(

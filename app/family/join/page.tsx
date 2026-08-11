@@ -31,6 +31,7 @@ export default function JoinFamilyPage() {
       setErrorMessage(
         error instanceof Error ? error.message : "Unable to join family.",
       );
+    } finally {
       setIsSubmitting(false);
     }
   }

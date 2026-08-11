@@ -7,15 +7,14 @@ import {
   type ReactNode,
 } from "react";
 
-import { DEMO_TODAY } from "@/data/events";
 import {
   EVENT_CATEGORIES,
   FAMILY_MEMBERS,
   type EventCategory,
   type FamilyEvent,
-  type FamilyMember,
   type NewFamilyEventInput,
 } from "@/types/event";
+import { getLocalDateIso } from "@/utils/events";
 
 export type EventFormValues = {
   title: string;
@@ -23,7 +22,7 @@ export type EventFormValues = {
   startTime: string;
   endDate: string;
   endTime: string;
-  assignedTo: FamilyMember | "";
+  assignedTo: string;
   category: EventCategory | "";
   location: string;
   notes: string;
@@ -42,7 +41,7 @@ type EventFormProps = {
 
 const INITIAL_VALUES: EventFormValues = {
   title: "",
-  startDate: DEMO_TODAY,
+  startDate: "",
   startTime: "",
   endDate: "",
   endTime: "",
@@ -51,6 +50,13 @@ const INITIAL_VALUES: EventFormValues = {
   location: "",
   notes: "",
 };
+
+function createDefaultFormValues(): EventFormValues {
+  return {
+    ...INITIAL_VALUES,
+    startDate: getLocalDateIso(),
+  };
+}
 
 export function familyEventToFormValues(event: FamilyEvent): EventFormValues {
   return {
@@ -122,7 +128,7 @@ export function toNewFamilyEventInput(
     startTime: values.startTime || undefined,
     endDate,
     endTime: values.endTime || undefined,
-    assignedTo: values.assignedTo as FamilyMember,
+    assignedTo: values.assignedTo,
     category: values.category as EventCategory,
     location: values.location.trim() || undefined,
     notes: values.notes.trim() || undefined,
@@ -137,7 +143,7 @@ export default function EventForm({
 }: EventFormProps) {
   const formId = useId();
   const [values, setValues] = useState<EventFormValues>(
-    initialValues ?? INITIAL_VALUES,
+    initialValues ?? createDefaultFormValues(),
   );
   const [errors, setErrors] = useState<EventFormErrors>({});
   const [touchedSubmit, setTouchedSubmit] = useState(false);
@@ -299,7 +305,7 @@ export default function EventForm({
             errors.assignedTo ? `${formId}-assignedTo-error` : undefined
           }
           onChange={(event) =>
-            updateField("assignedTo", event.target.value as FamilyMember | "")
+            updateField("assignedTo", event.target.value)
           }
           className={inputClassName(Boolean(errors.assignedTo))}
         >
@@ -309,6 +315,10 @@ export default function EventForm({
               {member}
             </option>
           ))}
+          {values.assignedTo &&
+          !(FAMILY_MEMBERS as readonly string[]).includes(values.assignedTo) ? (
+            <option value={values.assignedTo}>{values.assignedTo}</option>
+          ) : null}
         </select>
       </Field>
 

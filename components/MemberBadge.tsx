@@ -1,4 +1,5 @@
 import type { FamilyMember } from "@/types/event";
+import { FAMILY_MEMBERS } from "@/types/event";
 
 const MEMBER_STYLES: Record<
   FamilyMember,
@@ -22,22 +23,43 @@ const MEMBER_STYLES: Record<
   },
 };
 
+const FALLBACK_STYLE = {
+  initials: "+",
+  className: "bg-[#efe6dc] text-[#5c4030]",
+};
+
+function isFamilyMember(value: string): value is FamilyMember {
+  return (FAMILY_MEMBERS as readonly string[]).includes(value);
+}
+
+function styleForLabel(member: string) {
+  if (isFamilyMember(member)) {
+    return MEMBER_STYLES[member];
+  }
+
+  const first = member.trim().charAt(0).toUpperCase();
+  return {
+    initials: first || FALLBACK_STYLE.initials,
+    className: FALLBACK_STYLE.className,
+  };
+}
+
 type MemberBadgeProps = {
-  member: FamilyMember;
+  member: string;
 };
 
 export default function MemberBadge({ member }: MemberBadgeProps) {
-  const style = MEMBER_STYLES[member];
+  const style = styleForLabel(member);
 
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-surface-border bg-white/70 py-1 pl-1 pr-2.5 text-xs font-semibold text-foreground">
+    <span className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-surface-border bg-white/70 py-1 pl-1 pr-2.5 text-xs font-semibold text-foreground">
       <span
         aria-hidden="true"
-        className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${style.className}`}
+        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold ${style.className}`}
       >
         {style.initials}
       </span>
-      <span>{member}</span>
+      <span className="truncate">{member}</span>
     </span>
   );
 }

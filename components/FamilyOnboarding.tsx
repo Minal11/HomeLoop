@@ -9,13 +9,30 @@ import { createFamily, joinFamilyByInviteCode } from "@/lib/families";
 
 type Mode = "choose" | "create" | "join";
 
-export default function FamilyOnboarding() {
+type FamilyOnboardingProps = {
+  /** Called after create/join so the home page can reload family state in place. */
+  onFamilyReady?: () => void | Promise<void>;
+};
+
+export default function FamilyOnboarding({
+  onFamilyReady,
+}: FamilyOnboardingProps) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("choose");
   const [familyName, setFamilyName] = useState("");
   const [inviteCode, setInviteCode] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  async function finishSuccessfully() {
+    if (onFamilyReady) {
+      await onFamilyReady();
+      return;
+    }
+
+    router.replace("/");
+    router.refresh();
+  }
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,13 +45,13 @@ export default function FamilyOnboarding() {
 
     try {
       await createFamily(familyName);
-      router.replace("/");
-      router.refresh();
+      await finishSuccessfully();
     } catch (error) {
       console.error(error);
       setErrorMessage(
         error instanceof Error ? error.message : "Unable to create family.",
       );
+    } finally {
       setIsSubmitting(false);
     }
   }
@@ -50,13 +67,13 @@ export default function FamilyOnboarding() {
 
     try {
       await joinFamilyByInviteCode(inviteCode);
-      router.replace("/");
-      router.refresh();
+      await finishSuccessfully();
     } catch (error) {
       console.error(error);
       setErrorMessage(
         error instanceof Error ? error.message : "Unable to join family.",
       );
+    } finally {
       setIsSubmitting(false);
     }
   }

@@ -2,18 +2,12 @@ import { getCurrentFamily } from "@/lib/families";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import {
   EVENT_CATEGORIES,
-  FAMILY_MEMBERS,
   type EventCategory,
   type EventRow,
   type FamilyEvent,
-  type FamilyMember,
   type NewFamilyEventInput,
 } from "@/types/event";
 import { sortEvents } from "@/utils/events";
-
-function isFamilyMember(value: string): value is FamilyMember {
-  return (FAMILY_MEMBERS as readonly string[]).includes(value);
-}
 
 function isEventCategory(value: string): value is EventCategory {
   return (EVENT_CATEGORIES as readonly string[]).includes(value);
@@ -29,8 +23,9 @@ function normalizeTime(value: string | null): string | undefined {
 }
 
 export function mapEventRowToFamilyEvent(row: EventRow): FamilyEvent {
-  if (!isFamilyMember(row.assigned_to)) {
-    throw new Error(`Unexpected assigned_to value: ${row.assigned_to}`);
+  const assignedTo = row.assigned_to?.trim();
+  if (!assignedTo) {
+    throw new Error("Event is missing who’s involved.");
   }
 
   if (!isEventCategory(row.category)) {
@@ -44,7 +39,7 @@ export function mapEventRowToFamilyEvent(row: EventRow): FamilyEvent {
     startTime: normalizeTime(row.start_time),
     endDate: row.end_date ?? undefined,
     endTime: normalizeTime(row.end_time),
-    assignedTo: row.assigned_to,
+    assignedTo,
     category: row.category,
     location: row.location ?? undefined,
     notes: row.notes ?? undefined,

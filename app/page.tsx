@@ -8,7 +8,6 @@ import EventCard from "@/components/EventCard";
 import FamilyOnboarding from "@/components/FamilyOnboarding";
 import Heart from "@/components/Heart";
 import SignOutButton from "@/components/SignOutButton";
-import { DEMO_TODAY } from "@/data/events";
 import { getCurrentFamily } from "@/lib/families";
 import { getEvents } from "@/lib/events";
 import type { FamilyEvent } from "@/types/event";
@@ -75,14 +74,15 @@ export default function Home() {
   }, []);
 
   if (loadState === "no-family") {
-    return <FamilyOnboarding />;
+    return <FamilyOnboarding onFamilyReady={loadHome} />;
   }
 
-  const nextEvent = getNextEvent(events, DEMO_TODAY);
+  const now = new Date();
+  const nextEvent = getNextEvent(events, now);
   const remainingEvents = nextEvent
     ? events.filter((event) => event.id !== nextEvent.id)
     : events;
-  const sections = groupEventsByRelativeDay(remainingEvents, DEMO_TODAY);
+  const sections = groupEventsByRelativeDay(remainingEvents, now);
   const hasEvents = events.length > 0;
 
   return (
