@@ -294,6 +294,55 @@ Owners can regenerate the invite code. Join is enforced by the `join_family_by_i
 4. Either person can edit/delete shared events
 5. A third account outside the family sees none of these events
 
+### Family People Setup (Step 11)
+
+HomeLoop separates **account membership** (`family_members`) from **schedulable people** (`family_people`).
+
+Children like Ziva do **not** need a HomeLoop login. Events can involve multiple people via `event_people`, or the whole family via `events.applies_to_all`.
+
+#### 1. Run migrations
+
+In Supabase SQL Editor:
+
+1. `supabase/migrations/009_create_family_people.sql`
+2. `supabase/migrations/010_create_event_people.sql`
+3. Seed/backfill people + assignments (see SQL comments in `010`, placeholders only)
+4. `supabase/migrations/011_family_people_rls.sql`
+
+#### 2. Seed people for your family (example)
+
+```sql
+insert into public.family_people (family_id, display_name, linked_user_id, relationship)
+values
+  ('YOUR_FAMILY_ID', 'Minal', 'MINAL_USER_UUID', 'Adult'),
+  ('YOUR_FAMILY_ID', 'Ankush', 'ANKUSH_USER_UUID', 'Adult'), -- or null until Ankush joins
+  ('YOUR_FAMILY_ID', 'Ziva', null, 'Child');
+```
+
+#### 3. Map legacy `assigned_to`
+
+```sql
+update public.events
+set applies_to_all = true
+where family_id = 'YOUR_FAMILY_ID' and assigned_to = 'Family';
+
+insert into public.event_people (event_id, person_id)
+select e.id, p.id
+from public.events e
+join public.family_people p
+  on p.family_id = e.family_id
+ and p.display_name = e.assigned_to
+where e.family_id = 'YOUR_FAMILY_ID'
+  and e.assigned_to in ('Minal', 'Ankush', 'Ziva')
+on conflict do nothing;
+```
+
+Keep `events.assigned_to` for now (legacy). New/edited events also refresh it with a readable label.
+
+#### 4. Removing a person
+
+Deleting a `family_people` row removes their `event_people` links only. **Events are not deleted.**
+
 ## Security note
 
 Do not deploy publicly until you are comfortable with your auth + RLS setup.

@@ -6,10 +6,11 @@ import { useCallback, useEffect, useState } from "react";
 
 import CategoryBadge from "@/components/CategoryBadge";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
-import MemberBadge from "@/components/MemberBadge";
+import PeopleBadges from "@/components/PeopleBadges";
 import { deleteEvent, getEventById } from "@/lib/events";
 import type { FamilyEvent } from "@/types/event";
 import { formatEventDate, formatTime } from "@/utils/events";
+import { formatEventPeopleLabel } from "@/utils/people";
 
 type PageState = "loading" | "ready" | "not-found" | "error";
 
@@ -149,6 +150,7 @@ function EventDetails({
   const endTimeLabel = event.endTime ? formatTime(event.endTime) : null;
   const showEndDate =
     Boolean(event.endDate) && event.endDate !== event.startDate;
+  const peopleLabel = formatEventPeopleLabel(event);
 
   return (
     <main className="animate-fade-up flex flex-1 flex-col">
@@ -157,10 +159,24 @@ function EventDetails({
           <h1 className="font-display text-3xl font-semibold tracking-tight text-foreground">
             {event.title}
           </h1>
-          <MemberBadge member={event.assignedTo} />
         </div>
 
         <dl className="mt-6 space-y-4">
+          <div>
+            <dt className="text-xs font-bold uppercase tracking-[0.1em] text-muted">
+              Who&apos;s involved
+            </dt>
+            <dd className="mt-2">
+              <PeopleBadges
+                label={peopleLabel}
+                names={
+                  peopleLabel === "Family" || peopleLabel === "Unassigned"
+                    ? undefined
+                    : event.people.map((person) => person.displayName)
+                }
+              />
+            </dd>
+          </div>
           <DetailRow label="Date" value={dateLabel} />
           {startTimeLabel ? (
             <DetailRow label="Start time" value={startTimeLabel} />

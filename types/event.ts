@@ -1,7 +1,3 @@
-export const FAMILY_MEMBERS = ["Minal", "Ankush", "Ziva", "Family"] as const;
-
-export type FamilyMember = (typeof FAMILY_MEMBERS)[number];
-
 export const EVENT_CATEGORIES = [
   "Appointment",
   "Birthday",
@@ -16,6 +12,12 @@ export const EVENT_CATEGORIES = [
 
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 
+/** Lightweight person stamp embedded on events for display. */
+export type EventPersonSummary = {
+  id: string;
+  displayName: string;
+};
+
 export type FamilyEvent = {
   id: string;
   title: string;
@@ -27,14 +29,28 @@ export type FamilyEvent = {
   endDate?: string;
   /** 24-hour time string: HH:mm */
   endTime?: string;
-  assignedTo: FamilyMember;
+  /** True when the event involves the whole family. */
+  appliesToAll: boolean;
+  /** Assigned schedulable people (empty when appliesToAll). */
+  people: EventPersonSummary[];
   category: EventCategory;
   location?: string;
   notes?: string;
 };
 
-/** Event fields used when creating a new event (before an id is assigned). */
-export type NewFamilyEventInput = Omit<FamilyEvent, "id">;
+/** Event fields used when creating/updating an event (before an id is assigned). */
+export type NewFamilyEventInput = {
+  title: string;
+  startDate: string;
+  startTime?: string;
+  endDate?: string;
+  endTime?: string;
+  appliesToAll: boolean;
+  personIds: string[];
+  category: EventCategory;
+  location?: string;
+  notes?: string;
+};
 
 /** Database row shape for the Supabase `events` table (snake_case). */
 export type EventRow = {
@@ -44,13 +60,14 @@ export type EventRow = {
   start_time: string | null;
   end_date: string | null;
   end_time: string | null;
+  /** Legacy text assignment — kept for migration/backfill. */
   assigned_to: string;
+  /** Present after Step 11 migration; may be missing on legacy rows. */
+  applies_to_all?: boolean;
   category: string;
   location: string | null;
   notes: string | null;
-  /** Who created the event (auth.users). */
   created_by: string | null;
-  /** Family that owns / shares this event. */
   family_id: string | null;
   created_at: string;
   updated_at: string;

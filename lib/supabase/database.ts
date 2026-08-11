@@ -4,6 +4,7 @@ import type {
   FamilyRow,
   ProfileRow,
 } from "@/types/family";
+import type { EventPersonRow, FamilyPersonRow } from "@/types/person";
 
 export type Database = {
   public: {
@@ -18,6 +19,7 @@ export type Database = {
           end_date?: string | null;
           end_time?: string | null;
           assigned_to: string;
+          applies_to_all?: boolean;
           category: string;
           location?: string | null;
           notes?: string | null;
@@ -34,6 +36,7 @@ export type Database = {
           end_date?: string | null;
           end_time?: string | null;
           assigned_to?: string;
+          applies_to_all?: boolean;
           category?: string;
           location?: string | null;
           notes?: string | null;
@@ -42,7 +45,15 @@ export type Database = {
           created_at?: string;
           updated_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "events_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       families: {
         Row: FamilyRow;
@@ -79,6 +90,67 @@ export type Database = {
           created_at?: string;
         };
         Relationships: [];
+      };
+      family_people: {
+        Row: FamilyPersonRow;
+        Insert: {
+          id?: string;
+          family_id: string;
+          display_name: string;
+          linked_user_id?: string | null;
+          relationship?: string | null;
+          birth_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          display_name?: string;
+          linked_user_id?: string | null;
+          relationship?: string | null;
+          birth_date?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "family_people_family_id_fkey";
+            columns: ["family_id"];
+            isOneToOne: false;
+            referencedRelation: "families";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      event_people: {
+        Row: EventPersonRow;
+        Insert: {
+          event_id: string;
+          person_id: string;
+          created_at?: string;
+        };
+        Update: {
+          event_id?: string;
+          person_id?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "event_people_event_id_fkey";
+            columns: ["event_id"];
+            isOneToOne: false;
+            referencedRelation: "events";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "event_people_person_id_fkey";
+            columns: ["person_id"];
+            isOneToOne: false;
+            referencedRelation: "family_people";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       profiles: {
         Row: ProfileRow;

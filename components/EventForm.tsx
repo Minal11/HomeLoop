@@ -1,21 +1,23 @@
 "use client";
 
 import {
+  useEffect,
   useId,
+  useRef,
   useState,
   type FormEvent,
   type ReactNode,
 } from "react";
 
 import { DEMO_TODAY } from "@/data/events";
+import { getFamilyPeople } from "@/lib/family-people";
 import {
   EVENT_CATEGORIES,
-  FAMILY_MEMBERS,
   type EventCategory,
   type FamilyEvent,
-  type FamilyMember,
   type NewFamilyEventInput,
 } from "@/types/event";
+import type { FamilyPerson } from "@/types/person";
 
 export type EventFormValues = {
   title: string;
@@ -23,22 +25,73 @@ export type EventFormValues = {
   startTime: string;
   endDate: string;
   endTime: string;
-  assignedTo: FamilyMember | "";
+  appliesToAll: boolean;
+  personIds: string[];
   category: EventCategory | "";
   location: string;
   notes: string;
 };
 
 export type EventFormErrors = Partial<
-  Record<keyof EventFormValues, string>
+  Record<
+    "title" | "startDate" | "startTime" | "endDate" | "endTime" | "people" | "category",
+    string
+  >
 >;
 
 type EventFormProps = {
   initialValues?: EventFormValues;
+  /** Used to remap legacy person ids (e.g. legacy:event:0) onto real family_people rows. */
+  initialPeople?: Array<{ id: string; displayName: string }>;
   onSubmit: (event: NewFamilyEventInput) => void | Promise<void>;
   onCancel: () => void;
   submitLabel?: string;
 };
+
+function isPersonUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+function remapPersonIdsToFamilyPeople(
+  personIds: string[],
+  familyPeople: FamilyPerson[],
+  initialPeople: Array<{ id: string; displayName: string }>,
+): string[] {
+  const validIds = new Set(familyPeople.map((person) => person.id));
+  const idByName = new Map(
+    familyPeople.map((person) => [
+      person.displayName.trim().toLowerCase(),
+      person.id,
+    ]),
+  );
+  const nameByInitialId = new Map(
+    initialPeople.map((person) => [person.id, person.displayName]),
+  );
+
+  const resolved: string[] = [];
+  const seen = new Set<string>();
+
+  for (const id of personIds) {
+    let target: string | undefined;
+    if (validIds.has(id)) {
+      target = id;
+    } else {
+      const name = nameByInitialId.get(id);
+      if (name) {
+        target = idByName.get(name.trim().toLowerCase());
+      }
+    }
+
+    if (target && !seen.has(target)) {
+      seen.add(target);
+      resolved.push(target);
+    }
+  }
+
+  return resolved;
+}
 
 const INITIAL_VALUES: EventFormValues = {
   title: "",
@@ -46,7 +99,8 @@ const INITIAL_VALUES: EventFormValues = {
   startTime: "",
   endDate: "",
   endTime: "",
-  assignedTo: "",
+  appliesToAll: false,
+  personIds: [],
   category: "",
   location: "",
   notes: "",
@@ -59,7 +113,8 @@ export function familyEventToFormValues(event: FamilyEvent): EventFormValues {
     startTime: event.startTime ?? "",
     endDate: event.endDate ?? "",
     endTime: event.endTime ?? "",
-    assignedTo: event.assignedTo,
+    appliesToAll: event.appliesToAll,
+    personIds: event.people.map((person) => person.id),
     category: event.category,
     location: event.location ?? "",
     notes: event.notes ?? "",
@@ -78,8 +133,8 @@ export function validateEventForm(values: EventFormValues): EventFormErrors {
     errors.startDate = "Please choose a start date.";
   }
 
-  if (!values.assignedTo) {
-    errors.assignedTo = "Please choose who this is for.";
+  if (!values.appliesToAll && values.personIds.length === 0) {
+    errors.people = "Please choose who’s involved.";
   }
 
   if (!values.category) {
@@ -122,7 +177,10 @@ export function toNewFamilyEventInput(
     startTime: values.startTime || undefined,
     endDate,
     endTime: values.endTime || undefined,
-    assignedTo: values.assignedTo as FamilyMember,
+    appliesToAll: values.appliesToAll,
+    personIds: values.appliesToAll
+      ? []
+      : values.personIds.filter(isPersonUuid),
     category: values.category as EventCategory,
     location: values.location.trim() || undefined,
     notes: values.notes.trim() || undefined,
@@ -131,6 +189,7 @@ export function toNewFamilyEventInput(
 
 export default function EventForm({
   initialValues,
+  initialPeople = [],
   onSubmit,
   onCancel,
   submitLabel = "Save Event",
@@ -143,6 +202,49 @@ export default function EventForm({
   const [touchedSubmit, setTouchedSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [people, setPeople] = useState<FamilyPerson[]>([]);
+  const [peopleLoadError, setPeopleLoadError] = useState<string | null>(null);
+  const initialPeopleRef = useRef(initialPeople);
+
+  useEffect(() => {
+    let cancelled = false;
+    const peopleForRemap = initialPeopleRef.current;
+
+    void getFamilyPeople()
+      .then((rows) => {
+        if (cancelled) {
+          return;
+        }
+        setPeople(rows);
+        setValues((current) => {
+          if (current.appliesToAll || current.personIds.length === 0) {
+            return current;
+          }
+          const remapped = remapPersonIdsToFamilyPeople(
+            current.personIds,
+            rows,
+            peopleForRemap,
+          );
+          if (
+            remapped.length === current.personIds.length &&
+            remapped.every((id, index) => id === current.personIds[index])
+          ) {
+            return current;
+          }
+          return { ...current, personIds: remapped };
+        });
+      })
+      .catch((error: unknown) => {
+        console.error(error);
+        if (!cancelled) {
+          setPeopleLoadError("Unable to load family members.");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   function updateField<K extends keyof EventFormValues>(
     field: K,
@@ -157,59 +259,74 @@ export default function EventForm({
     });
   }
 
+  function togglePerson(personId: string) {
+    setValues((current) => {
+      const nextIds = current.personIds.includes(personId)
+        ? current.personIds.filter((id) => id !== personId)
+        : [...current.personIds, personId];
+      const next = {
+        ...current,
+        appliesToAll: false,
+        personIds: nextIds,
+      };
+      if (touchedSubmit) {
+        setErrors(validateEventForm(next));
+      }
+      return next;
+    });
+  }
+
+  function selectWholeFamily() {
+    setValues((current) => {
+      const next = {
+        ...current,
+        appliesToAll: true,
+        personIds: [],
+      };
+      if (touchedSubmit) {
+        setErrors(validateEventForm(next));
+      }
+      return next;
+    });
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isSubmitting) {
-      return;
-    }
-
     setTouchedSubmit(true);
-    setSubmitError(null);
-
     const nextErrors = validateEventForm(values);
     setErrors(nextErrors);
 
     if (Object.keys(nextErrors).length > 0) {
-      const firstErrorField = Object.keys(nextErrors)[0];
-      const fieldElement = document.getElementById(
-        `${formId}-${firstErrorField}`,
-      );
-      fieldElement?.focus();
       return;
     }
 
     setIsSubmitting(true);
+    setSubmitError(null);
 
     try {
       await onSubmit(toNewFamilyEventInput(values));
     } catch (error) {
       console.error(error);
       setSubmitError(
-        "We couldn’t save this event. Please try again in a moment.",
+        error instanceof Error ? error.message : "Unable to save event.",
       );
-    } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
     <form
-      onSubmit={handleSubmit}
-      noValidate
       className="flex flex-1 flex-col gap-5 pb-28"
+      onSubmit={(event) => void handleSubmit(event)}
+      noValidate
     >
-      <Field
-        id={`${formId}-title`}
-        label="Event Title"
-        error={errors.title}
-        required
-      >
+      <Field id={`${formId}-title`} label="Title" error={errors.title} required>
         <input
           id={`${formId}-title`}
           name="title"
           type="text"
           autoComplete="off"
-          placeholder="Ziva Vaccination"
+          placeholder="What’s happening?"
           value={values.title}
           aria-invalid={Boolean(errors.title)}
           aria-describedby={errors.title ? `${formId}-title-error` : undefined}
@@ -245,7 +362,6 @@ export default function EventForm({
             name="startTime"
             type="time"
             value={values.startTime}
-            aria-invalid={Boolean(errors.startTime)}
             onChange={(event) => updateField("startTime", event.target.value)}
             className={inputClassName(Boolean(errors.startTime))}
           />
@@ -284,33 +400,65 @@ export default function EventForm({
         </Field>
       </div>
 
-      <Field
-        id={`${formId}-assignedTo`}
-        label="Assigned To"
-        error={errors.assignedTo}
-        required
-      >
-        <select
-          id={`${formId}-assignedTo`}
-          name="assignedTo"
-          value={values.assignedTo}
-          aria-invalid={Boolean(errors.assignedTo)}
-          aria-describedby={
-            errors.assignedTo ? `${formId}-assignedTo-error` : undefined
-          }
-          onChange={(event) =>
-            updateField("assignedTo", event.target.value as FamilyMember | "")
-          }
-          className={inputClassName(Boolean(errors.assignedTo))}
-        >
-          <option value="">Select a family member</option>
-          {FAMILY_MEMBERS.map((member) => (
-            <option key={member} value={member}>
-              {member}
-            </option>
-          ))}
-        </select>
-      </Field>
+      <div className="flex flex-col gap-2">
+        <p className="text-sm font-bold text-foreground">
+          Who&apos;s involved?
+          <span className="text-accent" aria-hidden="true">
+            {" "}
+            *
+          </span>
+        </p>
+        {peopleLoadError ? (
+          <p role="alert" className="text-sm font-semibold text-accent">
+            {peopleLoadError}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={selectWholeFamily}
+            aria-pressed={values.appliesToAll}
+            className={[
+              "rounded-full border px-4 py-2.5 text-sm font-bold transition",
+              values.appliesToAll
+                ? "border-accent bg-accent text-white"
+                : "border-surface-border bg-white/85 text-foreground hover:border-accent/40",
+            ].join(" ")}
+          >
+            Whole family
+          </button>
+          {people.map((person) => {
+            const selected =
+              !values.appliesToAll && values.personIds.includes(person.id);
+            return (
+              <button
+                key={person.id}
+                type="button"
+                onClick={() => togglePerson(person.id)}
+                aria-pressed={selected}
+                className={[
+                  "rounded-full border px-4 py-2.5 text-sm font-bold transition",
+                  selected
+                    ? "border-accent bg-accent text-white"
+                    : "border-surface-border bg-white/85 text-foreground hover:border-accent/40",
+                ].join(" ")}
+              >
+                {person.displayName}
+              </button>
+            );
+          })}
+        </div>
+        {people.length === 0 && !peopleLoadError ? (
+          <p className="text-sm text-muted">
+            Add people on the Family screen first.
+          </p>
+        ) : null}
+        {errors.people ? (
+          <p role="alert" className="text-sm font-semibold text-accent">
+            {errors.people}
+          </p>
+        ) : null}
+      </div>
 
       <Field
         id={`${formId}-category`}
@@ -340,7 +488,7 @@ export default function EventForm({
         </select>
       </Field>
 
-      <Field id={`${formId}-location`} label="Location" error={errors.location}>
+      <Field id={`${formId}-location`} label="Location" error={undefined}>
         <input
           id={`${formId}-location`}
           name="location"
@@ -353,7 +501,7 @@ export default function EventForm({
         />
       </Field>
 
-      <Field id={`${formId}-notes`} label="Notes" error={errors.notes}>
+      <Field id={`${formId}-notes`} label="Notes" error={undefined}>
         <textarea
           id={`${formId}-notes`}
           name="notes"
