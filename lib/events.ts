@@ -66,16 +66,40 @@ export function mapFamilyEventInputToRow(
   };
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(message));
+    }, ms);
+
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error: unknown) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
 export async function getEvents(): Promise<FamilyEvent[]> {
   const supabase = getSupabaseClient();
 
-  const { data, error } = await supabase
+  const query = supabase
     .from("events")
     .select(
       "id, title, start_date, start_time, end_date, end_time, assigned_to, category, location, notes, created_at, updated_at",
     )
     .order("start_date", { ascending: true })
     .order("start_time", { ascending: true, nullsFirst: true });
+
+  const { data, error } = await withTimeout(
+    query,
+    10000,
+    "Timed out while loading events.",
+  );
 
   if (error) {
     console.error("Failed to load events from Supabase:", error);
@@ -106,4 +130,61 @@ export async function createEvent(
   }
 
   return mapEventRowToFamilyEvent(data);
+}
+
+const EVENT_SELECT =
+  "id, title, start_date, start_time, end_date, end_time, assigned_to, category, location, notes, created_at, updated_at";
+
+export async function getEventById(id: string): Promise<FamilyEvent | null> {
+  const supabase = getSupabaseClient();
+
+  const { data, error } = await supabase
+    .from("events")
+    .select(EVENT_SELECT)
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Failed to load event from Supabase:", error);
+    throw new Error("Unable to load event.");
+  }
+
+  if (!data) {
+    return null;
+  }
+
+  return mapEventRowToFamilyEvent(data);
+}
+
+export async function updateEvent(
+  id: string,
+  input: NewFamilyEventInput,
+): Promise<FamilyEvent> {
+  const supabase = getSupabaseClient();
+  const row = mapFamilyEventInputToRow(input);
+
+  const { data, error } = await supabase
+    .from("events")
+    .update(row)
+    .eq("id", id)
+    .select(EVENT_SELECT)
+    .single();
+
+  if (error || !data) {
+    console.error("Failed to update event in Supabase:", error);
+    throw new Error("Unable to save changes.");
+  }
+
+  return mapEventRowToFamilyEvent(data);
+}
+
+export async function deleteEvent(id: string): Promise<void> {
+  const supabase = getSupabaseClient();
+
+  const { error } = await supabase.from("events").delete().eq("id", id);
+
+  if (error) {
+    console.error("Failed to delete event from Supabase:", error);
+    throw new Error("Unable to delete event.");
+  }
 }

@@ -35,4 +35,10 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
 
 `supabase/schema.sql` enables Row Level Security and adds **temporary development policies** that allow anonymous clients to select and insert events.
 
-These policies are **not production-ready**. Replace them when authentication is added.
+For View/Edit/Delete (Step 5), also run:
+
+`supabase/migrations/002_dev_update_delete_policies.sql`
+
+That adds temporary anonymous **UPDATE** and **DELETE** policies.
+
+These policies are **not production-ready**. HomeLoop is not safe for public deployment while anonymous clients can change or delete events. Replace them when authentication is added.

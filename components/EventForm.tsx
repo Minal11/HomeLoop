@@ -12,6 +12,7 @@ import {
   EVENT_CATEGORIES,
   FAMILY_MEMBERS,
   type EventCategory,
+  type FamilyEvent,
   type FamilyMember,
   type NewFamilyEventInput,
 } from "@/types/event";
@@ -33,6 +34,7 @@ export type EventFormErrors = Partial<
 >;
 
 type EventFormProps = {
+  initialValues?: EventFormValues;
   onSubmit: (event: NewFamilyEventInput) => void | Promise<void>;
   onCancel: () => void;
   submitLabel?: string;
@@ -49,6 +51,20 @@ const INITIAL_VALUES: EventFormValues = {
   location: "",
   notes: "",
 };
+
+export function familyEventToFormValues(event: FamilyEvent): EventFormValues {
+  return {
+    title: event.title,
+    startDate: event.startDate,
+    startTime: event.startTime ?? "",
+    endDate: event.endDate ?? "",
+    endTime: event.endTime ?? "",
+    assignedTo: event.assignedTo,
+    category: event.category,
+    location: event.location ?? "",
+    notes: event.notes ?? "",
+  };
+}
 
 export function validateEventForm(values: EventFormValues): EventFormErrors {
   const errors: EventFormErrors = {};
@@ -114,12 +130,15 @@ export function toNewFamilyEventInput(
 }
 
 export default function EventForm({
+  initialValues,
   onSubmit,
   onCancel,
   submitLabel = "Save Event",
 }: EventFormProps) {
   const formId = useId();
-  const [values, setValues] = useState<EventFormValues>(INITIAL_VALUES);
+  const [values, setValues] = useState<EventFormValues>(
+    initialValues ?? INITIAL_VALUES,
+  );
   const [errors, setErrors] = useState<EventFormErrors>({});
   const [touchedSubmit, setTouchedSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
