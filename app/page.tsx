@@ -5,23 +5,32 @@ import { useCallback, useEffect, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
 import EventCard from "@/components/EventCard";
+import FamilyOnboarding from "@/components/FamilyOnboarding";
 import Heart from "@/components/Heart";
 import SignOutButton from "@/components/SignOutButton";
 import { DEMO_TODAY } from "@/data/events";
+import { getCurrentFamily } from "@/lib/families";
 import { getEvents } from "@/lib/events";
 import type { FamilyEvent } from "@/types/event";
 import { getNextEvent, groupEventsByRelativeDay } from "@/utils/events";
 
-type LoadState = "loading" | "ready" | "error";
+type LoadState = "loading" | "ready" | "error" | "no-family";
 
 export default function Home() {
   const [events, setEvents] = useState<FamilyEvent[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
 
-  const loadEvents = useCallback(async () => {
+  const loadHome = useCallback(async () => {
     setLoadState("loading");
 
     try {
+      const family = await getCurrentFamily();
+      if (!family) {
+        setEvents([]);
+        setLoadState("no-family");
+        return;
+      }
+
       const nextEvents = await getEvents();
       setEvents(nextEvents);
       setLoadState("ready");
@@ -34,25 +43,40 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false;
 
-    void getEvents()
-      .then((nextEvents) => {
+    void (async () => {
+      try {
+        const family = await getCurrentFamily();
+        if (cancelled) {
+          return;
+        }
+        if (!family) {
+          setEvents([]);
+          setLoadState("no-family");
+          return;
+        }
+
+        const nextEvents = await getEvents();
         if (cancelled) {
           return;
         }
         setEvents(nextEvents);
         setLoadState("ready");
-      })
-      .catch((error: unknown) => {
+      } catch (error) {
         console.error(error);
         if (!cancelled) {
           setLoadState("error");
         }
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
     };
   }, []);
+
+  if (loadState === "no-family") {
+    return <FamilyOnboarding />;
+  }
 
   const nextEvent = getNextEvent(events, DEMO_TODAY);
   const remainingEvents = nextEvent
@@ -75,6 +99,14 @@ export default function Home() {
           <p className="mt-2 max-w-xs text-base text-muted sm:text-lg">
             Keep your family in the loop.
           </p>
+          <nav className="mt-3 flex items-center gap-3">
+            <Link
+              href="/family"
+              className="text-sm font-bold text-accent transition hover:text-accent-deep"
+            >
+              Family
+            </Link>
+          </nav>
         </div>
         <SignOutButton />
       </header>
@@ -90,7 +122,7 @@ export default function Home() {
         {loadState === "loading" ? (
           <LoadingState />
         ) : loadState === "error" ? (
-          <ErrorState onRetry={() => void loadEvents()} />
+          <ErrorState onRetry={() => void loadHome()} />
         ) : !hasEvents ? (
           <div className="mt-6">
             <EmptyState href="/events/new" />

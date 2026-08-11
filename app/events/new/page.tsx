@@ -2,13 +2,42 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import EventForm from "@/components/EventForm";
+import { getCurrentFamily } from "@/lib/families";
 import { createEvent } from "@/lib/events";
 import type { NewFamilyEventInput } from "@/types/event";
 
 export default function NewEventPage() {
   const router = useRouter();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void getCurrentFamily()
+      .then((family) => {
+        if (cancelled) {
+          return;
+        }
+        if (!family) {
+          router.replace("/");
+          return;
+        }
+        setReady(true);
+      })
+      .catch((error: unknown) => {
+        console.error(error);
+        if (!cancelled) {
+          router.replace("/");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
   async function handleSubmit(input: NewFamilyEventInput) {
     await createEvent(input);
@@ -17,6 +46,14 @@ export default function NewEventPage() {
 
   function handleCancel() {
     router.push("/");
+  }
+
+  if (!ready) {
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-1 flex-col px-5 py-10">
+        <p className="text-sm font-semibold text-muted">Loading…</p>
+      </div>
+    );
   }
 
   return (

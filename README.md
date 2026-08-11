@@ -210,6 +210,90 @@ Deploy HomeLoop from this GitHub repository to Vercel. Keep using the existing S
 
 Do not put service-role keys in Vercel. Use only the publishable Supabase key.
 
+### Family Sharing Setup
+
+HomeLoop events belong to a **family**. Membership (not `created_by`) controls who can see and manage shared events. `created_by` still records who created each event.
+
+#### 1. Run schema migrations first
+
+In Supabase SQL Editor, run:
+
+1. `supabase/migrations/005_create_families.sql`
+2. `supabase/migrations/006_add_event_family_id.sql`
+
+Do **not** run the RLS migration (`007`) until existing events are backfilled (next section).  
+Do **not** run `008_events_family_id_not_null.sql` until every event has a `family_id`.
+
+#### 2. Migrate existing events (example: Minal’s account)
+
+Replace placeholders — never commit real UUIDs.
+
+```sql
+-- A. Your user UUID from Authentication → Users
+-- B. Create family + owner membership
+insert into public.families (name, created_by, invite_code)
+values (
+  'Kondawar-Agrekar Family',
+  'YOUR_USER_UUID',
+  public.generate_family_invite_code()
+)
+returning id, invite_code;
+
+insert into public.family_members (family_id, user_id, role)
+values ('YOUR_FAMILY_ID', 'YOUR_USER_UUID', 'owner');
+
+insert into public.profiles (id, display_name)
+values ('YOUR_USER_UUID', 'Minal')
+on conflict (id) do update set display_name = excluded.display_name;
+
+-- C. Attach existing events
+update public.events
+set family_id = 'YOUR_FAMILY_ID'
+where created_by = 'YOUR_USER_UUID'
+  and family_id is null;
+
+-- D. Verify every event has a family_id
+select id, title, created_by, family_id
+from public.events
+order by start_date;
+```
+
+#### 3. Enable family RLS + NOT NULL
+
+After backfill succeeds:
+
+1. Run `supabase/migrations/007_family_rls.sql`
+2. Run `supabase/migrations/008_events_family_id_not_null.sql`
+
+#### 4. Create family in the app (new users)
+
+Signed-in users with no membership see **Create Family** / **Join Family** instead of events.
+
+#### 5. Invite / join
+
+1. Owner opens **Family** (`/family`)
+2. Copy the **invite code**
+3. Second person creates their own HomeLoop account
+4. They open **Join Family** and enter the code
+5. They are added as `member` and see shared events immediately
+
+Owners can regenerate the invite code. Join is enforced by the `join_family_by_invite_code` Postgres function (not a client-trusted `family_id`).
+
+#### 6. How RLS protects data
+
+- Events are visible/editable/deletable only if `is_family_member(family_id)`
+- Inserts require `created_by = auth.uid()` and membership in that family
+- Anonymous users have no access
+- Users cannot add themselves to arbitrary families without a valid invite code
+
+#### 7. Test with a second account
+
+1. Minal: family exists, events visible, invite code on `/family`
+2. Ankush: sign up → Join Family with code → sees Minal’s events
+3. Ankush adds an event → Minal sees it after refresh
+4. Either person can edit/delete shared events
+5. A third account outside the family sees none of these events
+
 ## Security note
 
 Do not deploy publicly until you are comfortable with your auth + RLS setup.

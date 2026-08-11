@@ -1,3 +1,4 @@
+import { getCurrentFamily } from "@/lib/families";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import {
   EVENT_CATEGORIES,
@@ -54,7 +55,7 @@ export function mapFamilyEventInputToRow(
   input: NewFamilyEventInput,
 ): Omit<
   EventRow,
-  "id" | "created_at" | "updated_at" | "created_by"
+  "id" | "created_at" | "updated_at" | "created_by" | "family_id"
 > {
   return {
     title: input.title,
@@ -92,7 +93,7 @@ function withTimeout<T>(
 }
 
 const EVENT_SELECT =
-  "id, title, start_date, start_time, end_date, end_time, assigned_to, category, location, notes, created_by, created_at, updated_at";
+  "id, title, start_date, start_time, end_date, end_time, assigned_to, category, location, notes, created_by, family_id, created_at, updated_at";
 
 async function requireAuthenticatedUserId(): Promise<string> {
   const supabase = getSupabaseClient();
@@ -107,6 +108,14 @@ async function requireAuthenticatedUserId(): Promise<string> {
   }
 
   return user.id;
+}
+
+async function requireCurrentFamilyId(): Promise<string> {
+  const family = await getCurrentFamily();
+  if (!family) {
+    throw new Error("Join or create a family before managing events.");
+  }
+  return family.id;
 }
 
 export async function getEvents(): Promise<FamilyEvent[]> {
@@ -138,9 +147,11 @@ export async function createEvent(
 ): Promise<FamilyEvent> {
   const supabase = getSupabaseClient();
   const userId = await requireAuthenticatedUserId();
+  const familyId = await requireCurrentFamilyId();
   const row = {
     ...mapFamilyEventInputToRow(input),
     created_by: userId,
+    family_id: familyId,
   };
 
   const { data, error } = await supabase

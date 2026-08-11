@@ -1,4 +1,9 @@
 import type { EventRow } from "@/types/event";
+import type {
+  FamilyMemberDbRow,
+  FamilyRow,
+  ProfileRow,
+} from "@/types/family";
 
 export type Database = {
   public: {
@@ -17,6 +22,7 @@ export type Database = {
           location?: string | null;
           notes?: string | null;
           created_by: string;
+          family_id: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -32,14 +38,78 @@ export type Database = {
           location?: string | null;
           notes?: string | null;
           created_by?: string;
+          family_id?: string;
           created_at?: string;
           updated_at?: string;
         };
         Relationships: [];
       };
+      families: {
+        Row: FamilyRow;
+        Insert: {
+          id?: string;
+          name: string;
+          created_by: string;
+          invite_code: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          created_by?: string;
+          invite_code?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      family_members: {
+        Row: FamilyMemberDbRow;
+        Insert: {
+          id?: string;
+          family_id: string;
+          user_id: string;
+          role?: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          user_id?: string;
+          role?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      profiles: {
+        Row: ProfileRow;
+        Insert: {
+          id: string;
+          display_name: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          display_name?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      join_family_by_invite_code: {
+        Args: { invite: string };
+        Returns: string;
+      };
+      is_family_member: {
+        Args: { fid: string };
+        Returns: boolean;
+      };
+      is_family_owner: {
+        Args: { fid: string };
+        Returns: boolean;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

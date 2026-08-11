@@ -48,8 +48,10 @@ export type EventRow = {
   category: string;
   location: string | null;
   notes: string | null;
-  /** Authenticated owner from auth.users. Nullable until backfill completes. */
+  /** Who created the event (auth.users). */
   created_by: string | null;
+  /** Family that owns / shares this event. */
+  family_id: string | null;
   created_at: string;
   updated_at: string;
 };
