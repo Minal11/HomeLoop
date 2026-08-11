@@ -27,7 +27,12 @@ export type FamilyEvent = {
   endDate?: string;
   /** 24-hour time string: HH:mm */
   endTime?: string;
-  assignedTo: FamilyMember;
+  /**
+   * Who the event is for.
+   * Usually a FamilyMember value; may also be a multi-person label
+   * such as "Ankush + Minal" from earlier multi-assign writes.
+   */
+  assignedTo: string;
   category: EventCategory;
   location?: string;
   notes?: string;
