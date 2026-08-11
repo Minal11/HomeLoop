@@ -155,6 +155,25 @@ Optional: If you customize the Supabase recovery email template for PKCE, use a 
 
 `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password`
 
+### Install HomeLoop as a PWA
+
+HomeLoop is installable as a Progressive Web App (standalone display, app icons, theme color). No push notifications or offline event sync in this step.
+
+#### iPhone
+
+1. Open HomeLoop in **Safari**
+2. Tap **Share**
+3. Tap **Add to Home Screen**
+4. Confirm **Add**
+
+#### Android
+
+1. Open HomeLoop in **Chrome**
+2. Use the browser menu → **Install app** / **Add to Home Screen**
+3. Confirm install
+
+Installed HomeLoop opens at `/` in standalone mode. Sign-in cookies continue to work the same as in the browser.
+
 ## Security note
 
 Do not deploy publicly until you are comfortable with your auth + RLS setup.

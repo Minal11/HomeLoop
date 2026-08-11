@@ -374,7 +374,7 @@ export default function EventForm({
         </p>
       ) : null}
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center px-5 pb-5 pt-8">
+      <div className="pointer-events-none safe-bottom fixed inset-x-0 bottom-0 z-20 flex justify-center px-5 pt-8">
         <div className="pointer-events-auto flex w-full max-w-md flex-col gap-3 sm:max-w-lg">
           <button
             type="submit"

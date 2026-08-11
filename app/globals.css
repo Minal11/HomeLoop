@@ -30,14 +30,31 @@
   --font-display: var(--font-fraunces);
 }
 
+html {
+  /* Support notched phones / home indicators when installed as a PWA */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) 0
+    env(safe-area-inset-left);
+}
+
 body {
-  background:
-    radial-gradient(ellipse 80% 45% at 8% 0%, rgba(239, 201, 154, 0.35) 0%, transparent 55%),
-    radial-gradient(ellipse 60% 40% at 100% 8%, rgba(232, 210, 176, 0.3) 0%, transparent 50%),
-    linear-gradient(180deg, #f6efe6 0%, #f0e6d8 100%);
+  background-color: #f3ebe0;
+  background-image:
+    radial-gradient(ellipse 100% 70% at -10% -20%, rgba(216, 69, 93, 0.22) 0%, transparent 55%),
+    radial-gradient(ellipse 80% 60% at 110% -10%, rgba(212, 161, 90, 0.34) 0%, transparent 50%),
+    radial-gradient(ellipse 70% 55% at 100% 100%, rgba(180, 83, 42, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse 65% 50% at -5% 105%, rgba(245, 196, 205, 0.45) 0%, transparent 50%),
+    radial-gradient(ellipse 40% 30% at 50% 40%, rgba(255, 250, 243, 0.55) 0%, transparent 70%),
+    linear-gradient(160deg, #faf4ec 0%, #f3ebe0 32%, #eadfce 68%, #e2d0b8 100%);
+  background-attachment: fixed;
   color: var(--foreground);
   font-family: var(--font-nunito), ui-sans-serif, sans-serif;
   min-height: 100%;
+  min-height: 100dvh;
+}
+
+/* Fixed bottom bars clear the iOS home indicator */
+.safe-bottom {
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
 }
 
 @keyframes fade-up {
@@ -68,4 +85,18 @@ body {
 
 .animate-soft-pop {
   animation: soft-pop 0.45s ease-out both;
+}
+
+@keyframes heart-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.animate-heart-float {
+  animation: heart-float 2.8s ease-in-out infinite;
 }

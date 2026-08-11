@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import Heart from "@/components/Heart";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { getAuthErrorMessage } from "@/utils/auth-errors";
 
@@ -104,6 +105,10 @@ export default function LoginPage() {
       <header className="animate-fade-up text-center sm:text-left">
         <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
           HomeLoop
+          <Heart
+            size={18}
+            className="ml-2 inline-block translate-y-[-0.15em] opacity-80 animate-heart-float"
+          />
         </h1>
         <p className="mt-2 text-base text-muted sm:text-lg">
           Keep your family in the loop.

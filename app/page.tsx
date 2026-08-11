@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
 import EventCard from "@/components/EventCard";
+import Heart from "@/components/Heart";
 import SignOutButton from "@/components/SignOutButton";
 import { DEMO_TODAY } from "@/data/events";
 import { getEvents } from "@/lib/events";
@@ -66,6 +67,10 @@ export default function Home() {
         <div>
           <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
             HomeLoop
+            <Heart
+              size={18}
+              className="ml-2 inline-block translate-y-[-0.15em] opacity-80 animate-heart-float"
+            />
           </h1>
           <p className="mt-2 max-w-xs text-base text-muted sm:text-lg">
             Keep your family in the loop.
@@ -123,13 +128,14 @@ export default function Home() {
         )}
       </main>
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center px-5 pb-5 pt-10">
+      <div className="pointer-events-none safe-bottom fixed inset-x-0 bottom-0 z-20 flex justify-center px-5 pt-10">
         <div className="pointer-events-auto w-full max-w-md sm:max-w-lg">
           <Link
             href="/events/new"
-            className="flex w-full items-center justify-center rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white shadow-[0_14px_28px_rgba(184,51,74,0.32)] transition duration-200 hover:bg-accent-deep active:scale-[0.98]"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white shadow-[0_14px_28px_rgba(184,51,74,0.32)] transition duration-200 hover:bg-accent-deep active:scale-[0.98]"
           >
             + Add Event
+            <Heart size={14} className="text-white/90" />
           </Link>
         </div>
       </div>

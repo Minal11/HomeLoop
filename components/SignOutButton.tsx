@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import Heart from "@/components/Heart";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { getAuthErrorMessage } from "@/utils/auth-errors";
 
@@ -46,9 +47,10 @@ export default function SignOutButton() {
         onClick={() => void handleSignOut()}
         disabled={isSigningOut}
         aria-busy={isSigningOut}
-        className="rounded-xl px-2 py-1 text-sm font-bold text-muted transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 disabled:cursor-not-allowed disabled:opacity-70"
+        className="inline-flex items-center gap-1.5 rounded-xl px-2 py-1 text-sm font-bold text-muted transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 disabled:cursor-not-allowed disabled:opacity-70"
       >
         {isSigningOut ? "Signing out…" : "Sign Out"}
+        <Heart size={12} className="opacity-70" />
       </button>
       {errorMessage ? (
         <p role="alert" className="max-w-[12rem] text-right text-xs font-semibold text-accent">

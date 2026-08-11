@@ -23,7 +23,7 @@ export default function DeleteConfirmDialog({
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-end justify-center bg-foreground/35 px-5 pb-8 pt-10 sm:items-center"
+      className="safe-bottom fixed inset-0 z-40 flex items-end justify-center bg-foreground/35 px-5 pt-10 sm:items-center"
       role="presentation"
       onClick={isDeleting ? undefined : onCancel}
     >
