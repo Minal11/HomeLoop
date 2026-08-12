@@ -16,6 +16,15 @@ export const EVENT_CATEGORIES = [
 
 export type EventCategory = (typeof EVENT_CATEGORIES)[number];
 
+/** Structured place payload when a Places suggestion is chosen. */
+export type EventLocationDetails = {
+  name?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+  placeId?: string;
+};
+
 export type FamilyEvent = {
   id: string;
   title: string;
@@ -34,7 +43,13 @@ export type FamilyEvent = {
    */
   assignedTo: string;
   category: EventCategory;
+  /** Display / legacy location text (manual or place name). */
   location?: string;
+  locationName?: string;
+  locationAddress?: string;
+  locationLat?: number;
+  locationLng?: number;
+  locationPlaceId?: string;
   notes?: string;
 };
 
@@ -52,6 +67,11 @@ export type EventRow = {
   assigned_to: string;
   category: string;
   location: string | null;
+  location_name?: string | null;
+  location_address?: string | null;
+  location_lat?: number | null;
+  location_lng?: number | null;
+  location_place_id?: string | null;
   notes: string | null;
   /** Who created the event (auth.users). */
   created_by: string | null;

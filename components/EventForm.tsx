@@ -7,6 +7,9 @@ import {
   type ReactNode,
 } from "react";
 
+import LocationAutocomplete, {
+  type LocationAutocompleteValue,
+} from "@/components/LocationAutocomplete";
 import {
   EVENT_CATEGORIES,
   FAMILY_MEMBERS,
@@ -15,6 +18,7 @@ import {
   type NewFamilyEventInput,
 } from "@/types/event";
 import { getLocalDateIso } from "@/utils/events";
+import { getEventLocationLabel } from "@/utils/maps";
 
 export type EventFormValues = {
   title: string;
@@ -25,6 +29,11 @@ export type EventFormValues = {
   assignedTo: string;
   category: EventCategory | "";
   location: string;
+  locationName: string;
+  locationAddress: string;
+  locationLat: number | null;
+  locationLng: number | null;
+  locationPlaceId: string;
   notes: string;
 };
 
@@ -48,6 +57,11 @@ const INITIAL_VALUES: EventFormValues = {
   assignedTo: "",
   category: "",
   location: "",
+  locationName: "",
+  locationAddress: "",
+  locationLat: null,
+  locationLng: null,
+  locationPlaceId: "",
   notes: "",
 };
 
@@ -67,7 +81,12 @@ export function familyEventToFormValues(event: FamilyEvent): EventFormValues {
     endTime: event.endTime ?? "",
     assignedTo: event.assignedTo,
     category: event.category,
-    location: event.location ?? "",
+    location: getEventLocationLabel(event),
+    locationName: event.locationName ?? "",
+    locationAddress: event.locationAddress ?? "",
+    locationLat: event.locationLat ?? null,
+    locationLng: event.locationLng ?? null,
+    locationPlaceId: event.locationPlaceId ?? "",
     notes: event.notes ?? "",
   };
 }
@@ -131,6 +150,11 @@ export function toNewFamilyEventInput(
     assignedTo: values.assignedTo,
     category: values.category as EventCategory,
     location: values.location.trim() || undefined,
+    locationName: values.locationName.trim() || undefined,
+    locationAddress: values.locationAddress.trim() || undefined,
+    locationLat: values.locationLat ?? undefined,
+    locationLng: values.locationLng ?? undefined,
+    locationPlaceId: values.locationPlaceId.trim() || undefined,
     notes: values.notes.trim() || undefined,
   };
 }
@@ -150,6 +174,17 @@ export default function EventForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const locationValue: LocationAutocompleteValue = {
+    text: values.location,
+    details: {
+      name: values.locationName || undefined,
+      address: values.locationAddress || undefined,
+      lat: values.locationLat ?? undefined,
+      lng: values.locationLng ?? undefined,
+      placeId: values.locationPlaceId || undefined,
+    },
+  };
+
   function updateField<K extends keyof EventFormValues>(
     field: K,
     value: EventFormValues[K],
@@ -160,6 +195,26 @@ export default function EventForm({
         setErrors(validateEventForm(next));
       }
       return next;
+    });
+  }
+
+  function updateLocation(next: LocationAutocompleteValue) {
+    setValues((current) => {
+      const updated: EventFormValues = {
+        ...current,
+        location: next.text,
+        locationName: next.details.name ?? "",
+        locationAddress: next.details.address ?? "",
+        locationLat:
+          typeof next.details.lat === "number" ? next.details.lat : null,
+        locationLng:
+          typeof next.details.lng === "number" ? next.details.lng : null,
+        locationPlaceId: next.details.placeId ?? "",
+      };
+      if (touchedSubmit) {
+        setErrors(validateEventForm(updated));
+      }
+      return updated;
     });
   }
 
@@ -351,16 +406,20 @@ export default function EventForm({
       </Field>
 
       <Field id={`${formId}-location`} label="Location" error={errors.location}>
-        <input
+        <LocationAutocomplete
           id={`${formId}-location`}
-          name="location"
-          type="text"
-          autoComplete="off"
-          placeholder="Where is it happening?"
-          value={values.location}
-          onChange={(event) => updateField("location", event.target.value)}
+          value={locationValue}
+          onChange={updateLocation}
           className={inputClassName(false)}
+          disabled={isSubmitting}
         />
+        {values.locationAddress ? (
+          <p className="text-xs text-muted">{values.locationAddress}</p>
+        ) : (
+          <p className="text-xs text-muted">
+            Search for a place, or type a custom spot like Home.
+          </p>
+        )}
       </Field>
 
       <Field id={`${formId}-notes`} label="Notes" error={errors.notes}>

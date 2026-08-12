@@ -20,6 +20,11 @@ export type Database = {
           assigned_to: string;
           category: string;
           location?: string | null;
+          location_name?: string | null;
+          location_address?: string | null;
+          location_lat?: number | null;
+          location_lng?: number | null;
+          location_place_id?: string | null;
           notes?: string | null;
           created_by: string;
           family_id: string;
@@ -36,6 +41,11 @@ export type Database = {
           assigned_to?: string;
           category?: string;
           location?: string | null;
+          location_name?: string | null;
+          location_address?: string | null;
+          location_lat?: number | null;
+          location_lng?: number | null;
+          location_place_id?: string | null;
           notes?: string | null;
           created_by?: string;
           family_id?: string;

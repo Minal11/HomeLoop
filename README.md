@@ -294,7 +294,69 @@ Owners can regenerate the invite code. Join is enforced by the `join_family_by_i
 4. Either person can edit/delete shared events
 5. A third account outside the family sees none of these events
 
+### Event location autocomplete + maps
+
+HomeLoop uses **Google Places API (New)** for location suggestions while typing, and opens locations in Google Maps or Apple Maps from event details/cards.
+
+#### 1. Database migration
+
+In Supabase SQL Editor, run:
+
+`supabase/migrations/009_event_location_fields.sql`
+
+This adds nullable columns (does **not** change or delete existing `location` text):
+
+- `location_name`
+- `location_address`
+- `location_lat`
+- `location_lng`
+- `location_place_id`
+
+Existing events keep working with text-only `location`. Manual entries like `Home` still save to `location` with null coordinates.
+
+#### 2. Google Cloud setup
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/).
+2. Create or select a project.
+3. Enable billing (required by Google Maps Platform).
+4. Enable **Places API (New)**  
+   (`https://console.cloud.google.com/apis/library/places.googleapis.com`).
+5. Create an API key under **APIs & Services → Credentials**.
+6. Restrict the key:
+   - **Application restrictions → IP addresses** for the server/proxy key used by Vercel (or leave unset only while testing locally, then restrict).
+   - Prefer a **server key** stored as `GOOGLE_MAPS_API_KEY` (never commit the real value).
+   - **API restrictions → Restrict key** to **Places API (New)** only.
+7. For local development, you can temporarily allow your IP, or use an unrestricted key only on your machine.
+8. Add to `.env.local`:
+
+```bash
+GOOGLE_MAPS_API_KEY=your_google_maps_api_key
+```
+
+9. Add the same variable in **Vercel → Project → Settings → Environment Variables** (Production + Preview).
+10. Redeploy / restart `npm run dev` after changing env vars.
+
+HomeLoop calls Places through Next.js routes (`/api/places/autocomplete`, `/api/places/details`) so the key stays on the server.  
+`NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is accepted only as a fallback and is **not** recommended for production.
+
+Note: browser HTTP-referrer restrictions alone are not ideal for Places REST; the server proxy + IP/API restrictions is the intended setup for HomeLoop domains including `https://home-loop-two.vercel.app`.
+
+#### 3. Manual locations
+
+Users can still type custom text (`Home`, `Priya's house`) without picking a suggestion. Coordinates / place id remain empty; map links use a search query.
+
+#### 4. Opening maps
+
+Tapping a location opens a small sheet:
+
+- **Google Maps** → `https://www.google.com/maps/search/?api=1&query=...`
+- **Apple Maps** → `https://maps.apple.com/?...`
+- **Cancel**
+
+Coordinates are used when present; otherwise the location text is URL-encoded as a search.
+
 ## Security note
 
 Do not deploy publicly until you are comfortable with your auth + RLS setup.
 Do not put service-role / secret keys in the Next.js app or `.env.local` for the browser.
+Do not commit real Google API keys. Restrict keys by API and (for server keys) by IP where practical.

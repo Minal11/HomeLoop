@@ -6,10 +6,15 @@ import { useCallback, useEffect, useState } from "react";
 
 import CategoryBadge from "@/components/CategoryBadge";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
+import MapOpenDialog from "@/components/MapOpenDialog";
 import MemberBadge from "@/components/MemberBadge";
 import { deleteEvent, getEventById } from "@/lib/events";
 import type { FamilyEvent } from "@/types/event";
 import { formatEventDate, formatTime } from "@/utils/events";
+import {
+  eventToMapLocation,
+  getEventLocationLabel,
+} from "@/utils/maps";
 
 type PageState = "loading" | "ready" | "not-found" | "error";
 
@@ -149,6 +154,9 @@ function EventDetails({
   const endTimeLabel = event.endTime ? formatTime(event.endTime) : null;
   const showEndDate =
     Boolean(event.endDate) && event.endDate !== event.startDate;
+  const locationLabel = getEventLocationLabel(event);
+  const mapLocation = eventToMapLocation(event);
+  const [isMapOpen, setIsMapOpen] = useState(false);
 
   return (
     <main className="animate-fade-up flex flex-1 flex-col">
@@ -187,8 +195,27 @@ function EventDetails({
               <CategoryBadge category={event.category} />
             </dd>
           </div>
-          {event.location ? (
-            <DetailRow label="Location" value={event.location} />
+          {locationLabel ? (
+            <div>
+              <dt className="text-xs font-bold uppercase tracking-[0.1em] text-muted">
+                Location
+              </dt>
+              <dd className="mt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsMapOpen(true)}
+                  className="text-left text-base font-semibold text-foreground underline decoration-accent/40 underline-offset-2 transition hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+                >
+                  {locationLabel}
+                </button>
+                {event.locationAddress &&
+                event.locationAddress !== locationLabel ? (
+                  <p className="mt-1 text-sm text-muted">
+                    {event.locationAddress}
+                  </p>
+                ) : null}
+              </dd>
+            </div>
           ) : null}
           {event.notes ? (
             <DetailRow label="Notes" value={event.notes} />
@@ -217,6 +244,14 @@ function EventDetails({
           Back to Upcoming Events
         </Link>
       </div>
+
+      {mapLocation ? (
+        <MapOpenDialog
+          open={isMapOpen}
+          location={mapLocation}
+          onClose={() => setIsMapOpen(false)}
+        />
+      ) : null}
     </main>
   );
 }

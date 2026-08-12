@@ -22,6 +22,34 @@ function normalizeTime(value: string | null): string | undefined {
   return value.slice(0, 5);
 }
 
+function normalizeOptionalText(value: string | null | undefined): string | undefined {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function normalizeOptionalNumber(
+  value: number | null | undefined,
+): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function isMissingLocationSchemaError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const record = error as { message?: string; details?: string; code?: string };
+  const blob = `${record.message ?? ""} ${record.details ?? ""} ${record.code ?? ""}`.toLowerCase();
+  return (
+    blob.includes("location_name") ||
+    blob.includes("location_address") ||
+    blob.includes("location_lat") ||
+    blob.includes("location_lng") ||
+    blob.includes("location_place_id") ||
+    blob.includes("does not exist") ||
+    blob.includes("could not find")
+  );
+}
+
 export function mapEventRowToFamilyEvent(row: EventRow): FamilyEvent {
   const assignedTo = row.assigned_to?.trim();
   if (!assignedTo) {
@@ -41,7 +69,12 @@ export function mapEventRowToFamilyEvent(row: EventRow): FamilyEvent {
     endTime: normalizeTime(row.end_time),
     assignedTo,
     category: row.category,
-    location: row.location ?? undefined,
+    location: normalizeOptionalText(row.location),
+    locationName: normalizeOptionalText(row.location_name),
+    locationAddress: normalizeOptionalText(row.location_address),
+    locationLat: normalizeOptionalNumber(row.location_lat),
+    locationLng: normalizeOptionalNumber(row.location_lng),
+    locationPlaceId: normalizeOptionalText(row.location_place_id),
     notes: row.notes ?? undefined,
   };
 }
@@ -52,6 +85,18 @@ export function mapFamilyEventInputToRow(
   EventRow,
   "id" | "created_at" | "updated_at" | "created_by" | "family_id"
 > {
+  const locationName = normalizeOptionalText(input.locationName) ?? null;
+  const locationAddress = normalizeOptionalText(input.locationAddress) ?? null;
+  const locationPlaceId = normalizeOptionalText(input.locationPlaceId) ?? null;
+  const locationLat = normalizeOptionalNumber(input.locationLat) ?? null;
+  const locationLng = normalizeOptionalNumber(input.locationLng) ?? null;
+
+  const displayLocation =
+    normalizeOptionalText(input.location) ||
+    locationName ||
+    locationAddress ||
+    null;
+
   return {
     title: input.title,
     start_date: input.startDate,
@@ -60,7 +105,12 @@ export function mapFamilyEventInputToRow(
     end_time: input.endTime ?? null,
     assigned_to: input.assignedTo,
     category: input.category,
-    location: input.location ?? null,
+    location: displayLocation,
+    location_name: locationName,
+    location_address: locationAddress,
+    location_lat: locationLat,
+    location_lng: locationLng,
+    location_place_id: locationPlaceId,
     notes: input.notes ?? null,
   };
 }
@@ -87,8 +137,27 @@ function withTimeout<T>(
   });
 }
 
-const EVENT_SELECT =
+const EVENT_SELECT_WITH_LOCATION =
+  "id, title, start_date, start_time, end_date, end_time, assigned_to, category, location, location_name, location_address, location_lat, location_lng, location_place_id, notes, created_by, family_id, created_at, updated_at";
+
+const EVENT_SELECT_LEGACY =
   "id, title, start_date, start_time, end_date, end_time, assigned_to, category, location, notes, created_by, family_id, created_at, updated_at";
+
+function stripStructuredLocation(
+  row: ReturnType<typeof mapFamilyEventInputToRow>,
+) {
+  return {
+    title: row.title,
+    start_date: row.start_date,
+    start_time: row.start_time,
+    end_date: row.end_date,
+    end_time: row.end_time,
+    assigned_to: row.assigned_to,
+    category: row.category,
+    location: row.location,
+    notes: row.notes,
+  };
+}
 
 async function requireAuthenticatedUserId(): Promise<string> {
   const supabase = getSupabaseClient();
@@ -116,24 +185,37 @@ async function requireCurrentFamilyId(): Promise<string> {
 export async function getEvents(): Promise<FamilyEvent[]> {
   const supabase = getSupabaseClient();
 
-  const query = supabase
-    .from("events")
-    .select(EVENT_SELECT)
-    .order("start_date", { ascending: true })
-    .order("start_time", { ascending: true, nullsFirst: true });
-
-  const { data, error } = await withTimeout(
-    query,
+  let result: {
+    data: EventRow[] | null;
+    error: unknown;
+  } = await withTimeout(
+    supabase
+      .from("events")
+      .select(EVENT_SELECT_WITH_LOCATION)
+      .order("start_date", { ascending: true })
+      .order("start_time", { ascending: true, nullsFirst: true }),
     10000,
     "Timed out while loading events.",
   );
 
-  if (error) {
-    console.error("Failed to load events from Supabase:", error);
+  if (result.error && isMissingLocationSchemaError(result.error)) {
+    result = await withTimeout(
+      supabase
+        .from("events")
+        .select(EVENT_SELECT_LEGACY)
+        .order("start_date", { ascending: true })
+        .order("start_time", { ascending: true, nullsFirst: true }),
+      10000,
+      "Timed out while loading events.",
+    );
+  }
+
+  if (result.error) {
+    console.error("Failed to load events from Supabase:", result.error);
     throw new Error("Unable to load events.");
   }
 
-  const events = (data ?? []).map(mapEventRowToFamilyEvent);
+  const events = ((result.data ?? []) as EventRow[]).map(mapEventRowToFamilyEvent);
   return sortEvents(events);
 }
 
@@ -143,45 +225,66 @@ export async function createEvent(
   const supabase = getSupabaseClient();
   const userId = await requireAuthenticatedUserId();
   const familyId = await requireCurrentFamilyId();
-  const row = {
-    ...mapFamilyEventInputToRow(input),
+  const mapped = mapFamilyEventInputToRow(input);
+  const fullRow = {
+    ...mapped,
     created_by: userId,
     family_id: familyId,
   };
 
-  const { data, error } = await supabase
+  let result: { data: EventRow | null; error: unknown } = await supabase
     .from("events")
-    .insert(row)
-    .select(EVENT_SELECT)
+    .insert(fullRow)
+    .select(EVENT_SELECT_WITH_LOCATION)
     .single();
 
-  if (error || !data) {
-    console.error("Failed to create event in Supabase:", error);
+  if (result.error && isMissingLocationSchemaError(result.error)) {
+    result = await supabase
+      .from("events")
+      .insert({
+        ...stripStructuredLocation(mapped),
+        created_by: userId,
+        family_id: familyId,
+      })
+      .select(EVENT_SELECT_LEGACY)
+      .single();
+  }
+
+  if (result.error || !result.data) {
+    console.error("Failed to create event in Supabase:", result.error);
     throw new Error("Unable to save event.");
   }
 
-  return mapEventRowToFamilyEvent(data);
+  return mapEventRowToFamilyEvent(result.data as EventRow);
 }
 
 export async function getEventById(id: string): Promise<FamilyEvent | null> {
   const supabase = getSupabaseClient();
 
-  const { data, error } = await supabase
+  let result: { data: EventRow | null; error: unknown } = await supabase
     .from("events")
-    .select(EVENT_SELECT)
+    .select(EVENT_SELECT_WITH_LOCATION)
     .eq("id", id)
     .maybeSingle();
 
-  if (error) {
-    console.error("Failed to load event from Supabase:", error);
+  if (result.error && isMissingLocationSchemaError(result.error)) {
+    result = await supabase
+      .from("events")
+      .select(EVENT_SELECT_LEGACY)
+      .eq("id", id)
+      .maybeSingle();
+  }
+
+  if (result.error) {
+    console.error("Failed to load event from Supabase:", result.error);
     throw new Error("Unable to load event.");
   }
 
-  if (!data) {
+  if (!result.data) {
     return null;
   }
 
-  return mapEventRowToFamilyEvent(data);
+  return mapEventRowToFamilyEvent(result.data as EventRow);
 }
 
 export async function updateEvent(
@@ -190,21 +293,30 @@ export async function updateEvent(
 ): Promise<FamilyEvent> {
   const supabase = getSupabaseClient();
   await requireAuthenticatedUserId();
-  const row = mapFamilyEventInputToRow(input);
+  const mapped = mapFamilyEventInputToRow(input);
 
-  const { data, error } = await supabase
+  let result: { data: EventRow | null; error: unknown } = await supabase
     .from("events")
-    .update(row)
+    .update(mapped)
     .eq("id", id)
-    .select(EVENT_SELECT)
+    .select(EVENT_SELECT_WITH_LOCATION)
     .single();
 
-  if (error || !data) {
-    console.error("Failed to update event in Supabase:", error);
+  if (result.error && isMissingLocationSchemaError(result.error)) {
+    result = await supabase
+      .from("events")
+      .update(stripStructuredLocation(mapped))
+      .eq("id", id)
+      .select(EVENT_SELECT_LEGACY)
+      .single();
+  }
+
+  if (result.error || !result.data) {
+    console.error("Failed to update event in Supabase:", result.error);
     throw new Error("Unable to save changes.");
   }
 
-  return mapEventRowToFamilyEvent(data);
+  return mapEventRowToFamilyEvent(result.data as EventRow);
 }
 
 export async function deleteEvent(id: string): Promise<void> {
