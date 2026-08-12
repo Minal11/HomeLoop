@@ -215,3 +215,88 @@ export function groupEventsByRelativeDay(
     events: buckets[key],
   }));
 }
+
+type SearchablePerson = {
+  displayName?: string;
+};
+
+type SearchableEvent = FamilyEvent & {
+  /** Present when relational family-people assignment is loaded. */
+  people?: SearchablePerson[];
+};
+
+function includesIgnoreCase(haystack: string | undefined | null, needle: string): boolean {
+  if (!haystack) {
+    return false;
+  }
+  return haystack.toLowerCase().includes(needle);
+}
+
+function collectPersonSearchText(event: SearchableEvent): string[] {
+  const values: string[] = [];
+
+  if (event.people && event.people.length > 0) {
+    for (const person of event.people) {
+      const name = person.displayName?.trim();
+      if (name) {
+        values.push(name);
+      }
+    }
+  }
+
+  const assigned = event.assignedTo?.trim();
+  if (assigned) {
+    values.push(assigned);
+    for (const part of assigned.split(/\s*\+\s*/)) {
+      const name = part.trim();
+      if (name) {
+        values.push(name);
+      }
+    }
+  }
+
+  return values;
+}
+
+/**
+ * Client-side Home search over already-loaded events.
+ * Case-insensitive; empty/whitespace query returns a sorted copy of all events.
+ */
+export function filterEvents(
+  events: FamilyEvent[],
+  query: string,
+): FamilyEvent[] {
+  const needle = query.trim().toLowerCase();
+  const sorted = sortEvents(events);
+
+  if (!needle) {
+    return sorted;
+  }
+
+  return sorted.filter((event) => {
+    const searchable = event as SearchableEvent;
+
+    if (includesIgnoreCase(searchable.title, needle)) {
+      return true;
+    }
+    if (includesIgnoreCase(searchable.category, needle)) {
+      return true;
+    }
+    if (includesIgnoreCase(searchable.notes, needle)) {
+      return true;
+    }
+    if (includesIgnoreCase(searchable.location, needle)) {
+      return true;
+    }
+    if (includesIgnoreCase(searchable.locationName, needle)) {
+      return true;
+    }
+    if (includesIgnoreCase(searchable.locationAddress, needle)) {
+      return true;
+    }
+
+    return collectPersonSearchText(searchable).some((name) =>
+      includesIgnoreCase(name, needle),
+    );
+  });
+}

@@ -17,7 +17,7 @@ import SignOutButton from "@/components/SignOutButton";
 import { getCurrentFamily } from "@/lib/families";
 import { getEvents } from "@/lib/events";
 import type { FamilyEvent } from "@/types/event";
-import { getNextEvent, groupEventsByRelativeDay } from "@/utils/events";
+import { getNextEvent, groupEventsByRelativeDay, filterEvents } from "@/utils/events";
 
 type LoadState = "loading" | "ready" | "error" | "no-family";
 
@@ -28,6 +28,7 @@ export default function Home() {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const isFetchingRef = useRef(false);
   const pullStartYRef = useRef<number | null>(null);
@@ -225,11 +226,16 @@ export default function Home() {
   }
 
   const now = new Date();
-  const nextEvent = getNextEvent(events, now);
+  const trimmedQuery = searchQuery.trim();
+  const isSearching = trimmedQuery.length > 0;
+  const searchResults = isSearching ? filterEvents(events, trimmedQuery) : [];
+  const nextEvent = isSearching ? null : getNextEvent(events, now);
   const remainingEvents = nextEvent
     ? events.filter((event) => event.id !== nextEvent.id)
     : events;
-  const sections = groupEventsByRelativeDay(remainingEvents, now);
+  const sections = isSearching
+    ? []
+    : groupEventsByRelativeDay(remainingEvents, now);
   const hasEvents = events.length > 0;
   const showPullHint = pullDistance > 8;
 
@@ -288,11 +294,49 @@ export default function Home() {
 
       <main className="mt-8 flex flex-1 flex-col">
         <div
-          className="animate-fade-up flex items-center justify-between gap-3"
+          className="animate-fade-up"
+          style={{ animationDelay: "40ms" }}
+        >
+          <label htmlFor="home-event-search" className="sr-only">
+            Search family events
+          </label>
+          <div className="relative">
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted"
+            >
+              <SearchIcon />
+            </span>
+            <input
+              id="home-event-search"
+              type="search"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              placeholder="Search events"
+              autoComplete="off"
+              spellCheck={false}
+              enterKeyHint="search"
+              className="w-full rounded-2xl border border-surface-border bg-white/85 py-3.5 pl-10 pr-11 text-base text-foreground outline-none transition placeholder:text-muted/70 focus-visible:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent/35"
+            />
+            {searchQuery ? (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                aria-label="Clear search"
+                className="absolute inset-y-0 right-2 my-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+              >
+                <ClearIcon />
+              </button>
+            ) : null}
+          </div>
+        </div>
+
+        <div
+          className="animate-fade-up mt-5 flex items-center justify-between gap-3"
           style={{ animationDelay: "60ms" }}
         >
           <h2 className="font-display text-2xl font-medium tracking-tight text-foreground">
-            Upcoming Events
+            {isSearching ? "Search Results" : "Upcoming Events"}
           </h2>
           <button
             type="button"
@@ -315,6 +359,22 @@ export default function Home() {
           <div className="mt-6">
             <EmptyState href="/events/new" />
           </div>
+        ) : isSearching ? (
+          searchResults.length === 0 ? (
+            <SearchEmptyState query={trimmedQuery} />
+          ) : (
+            <ul className="mt-5 flex list-none flex-col gap-3 p-0">
+              {searchResults.map((event, index) => (
+                <li key={event.id}>
+                  <EventCard
+                    event={event}
+                    index={index}
+                    onDeleted={() => void refreshEvents()}
+                  />
+                </li>
+              ))}
+            </ul>
+          )
         ) : (
           <div className="mt-5 flex flex-col gap-7">
             {nextEvent ? (
@@ -368,6 +428,53 @@ export default function Home() {
           </Link>
         </div>
       </div>
+    </div>
+  );
+}
+
+function SearchIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="8.5" cy="8.5" r="5" />
+      <path d="M12.5 12.5 16 16" />
+    </svg>
+  );
+}
+
+function ClearIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className="h-4 w-4"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    >
+      <path d="m6 6 8 8M14 6l-8 8" />
+    </svg>
+  );
+}
+
+function SearchEmptyState({ query }: { query: string }) {
+  return (
+    <div className="mt-6 rounded-3xl border border-surface-border bg-surface px-5 py-8 text-center shadow-[var(--shadow)]">
+      <p className="font-display text-xl font-medium text-foreground">
+        No events found
+      </p>
+      <p className="mt-2 text-sm text-muted">
+        Try another search{query ? ` for “${query}”` : ""}.
+      </p>
     </div>
   );
 }
