@@ -222,6 +222,8 @@ export default function EventCard({
     clickEvent.preventDefault();
     clickEvent.stopPropagation();
     setDeleteError(null);
+    // Reset swipe before the modal opens so the card is not left translated.
+    setOffset(0);
     setIsDeleteOpen(true);
   }
 
@@ -363,6 +365,7 @@ export default function EventCard({
           if (!isDeleting) {
             setIsDeleteOpen(false);
             setDeleteError(null);
+            setOffset(0);
           }
         }}
         onConfirm={() => void handleDeleteConfirm()}
