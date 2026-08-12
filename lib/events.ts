@@ -1,4 +1,5 @@
 import { getCurrentFamily } from "@/lib/families";
+import { syncEventReminder, getEventReminderOffsetMinutes } from "@/lib/reminders";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import {
   EVENT_CATEGORIES,
@@ -255,7 +256,24 @@ export async function createEvent(
     throw new Error("Unable to save event.");
   }
 
-  return mapEventRowToFamilyEvent(result.data as EventRow);
+  const created = mapEventRowToFamilyEvent(result.data as EventRow);
+
+  try {
+    const family = await getCurrentFamily();
+    await syncEventReminder({
+      eventId: created.id,
+      startDate: created.startDate,
+      startTime: created.startTime,
+      timeZone: family?.timezone || "America/Chicago",
+      offsetMinutes: input.reminderOffsetMinutes ?? null,
+    });
+  } catch (reminderError) {
+    console.error(reminderError);
+    // Event is saved; reminder failure should not hide the event.
+  }
+
+  created.reminderOffsetMinutes = input.reminderOffsetMinutes ?? null;
+  return created;
 }
 
 export async function getEventById(id: string): Promise<FamilyEvent | null> {
@@ -284,7 +302,14 @@ export async function getEventById(id: string): Promise<FamilyEvent | null> {
     return null;
   }
 
-  return mapEventRowToFamilyEvent(result.data as EventRow);
+  const event = mapEventRowToFamilyEvent(result.data as EventRow);
+  try {
+    event.reminderOffsetMinutes = await getEventReminderOffsetMinutes(id);
+  } catch (error) {
+    console.error(error);
+    event.reminderOffsetMinutes = null;
+  }
+  return event;
 }
 
 export async function updateEvent(
@@ -316,7 +341,23 @@ export async function updateEvent(
     throw new Error("Unable to save changes.");
   }
 
-  return mapEventRowToFamilyEvent(result.data as EventRow);
+  const updated = mapEventRowToFamilyEvent(result.data as EventRow);
+
+  try {
+    const family = await getCurrentFamily();
+    await syncEventReminder({
+      eventId: updated.id,
+      startDate: updated.startDate,
+      startTime: updated.startTime,
+      timeZone: family?.timezone || "America/Chicago",
+      offsetMinutes: input.reminderOffsetMinutes ?? null,
+    });
+  } catch (reminderError) {
+    console.error(reminderError);
+  }
+
+  updated.reminderOffsetMinutes = input.reminderOffsetMinutes ?? null;
+  return updated;
 }
 
 export async function deleteEvent(id: string): Promise<void> {

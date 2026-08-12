@@ -13,6 +13,7 @@ function mapFamilyRow(row: FamilyRow): Family {
     name: row.name,
     createdBy: row.created_by,
     inviteCode: row.invite_code,
+    timezone: row.timezone?.trim() || "America/Chicago",
     createdAt: row.created_at,
   };
 }
@@ -93,11 +94,34 @@ export async function getCurrentFamily(): Promise<Family | null> {
 
   const { data: family, error: familyError } = await supabase
     .from("families")
-    .select("id, name, created_by, invite_code, created_at")
+    .select("id, name, created_by, invite_code, timezone, created_at")
     .eq("id", membership.family_id)
     .maybeSingle();
 
   if (familyError) {
+    // Before migration 010, timezone column may be missing.
+    const message = `${familyError.message ?? ""}`.toLowerCase();
+    if (
+      message.includes("timezone") ||
+      message.includes("does not exist") ||
+      message.includes("could not find")
+    ) {
+      const legacy = await supabase
+        .from("families")
+        .select("id, name, created_by, invite_code, created_at")
+        .eq("id", membership.family_id)
+        .maybeSingle();
+
+      if (legacy.error) {
+        console.error("Failed to load family:", legacy.error);
+        throw new Error("Unable to load your family.");
+      }
+      if (!legacy.data) {
+        return null;
+      }
+      return mapFamilyRow(legacy.data as FamilyRow);
+    }
+
     console.error("Failed to load family:", familyError);
     throw new Error("Unable to load your family.");
   }
@@ -146,7 +170,7 @@ export async function createFamily(name: string): Promise<Family> {
         created_by: user.id,
         invite_code: inviteCode,
       })
-      .select("id, name, created_by, invite_code, created_at")
+      .select("id, name, created_by, invite_code, timezone, created_at")
       .single();
 
     if (familyError || !family) {
@@ -154,6 +178,38 @@ export async function createFamily(name: string): Promise<Family> {
       // unique violation on invite_code → retry
       if (familyError?.code === "23505") {
         continue;
+      }
+      // Before timezone migration, fall back to legacy select.
+      if (
+        `${familyError?.message ?? ""}`.toLowerCase().includes("timezone")
+      ) {
+        const legacy = await supabase
+          .from("families")
+          .insert({
+            name: trimmed,
+            created_by: user.id,
+            invite_code: inviteCode,
+          })
+          .select("id, name, created_by, invite_code, created_at")
+          .single();
+        if (legacy.error || !legacy.data) {
+          console.error("Failed to create family:", legacy.error);
+          throw new Error("Unable to create family.");
+        }
+        const { error: memberError } = await supabase
+          .from("family_members")
+          .insert({
+            family_id: legacy.data.id,
+            user_id: user.id,
+            role: "owner",
+          });
+        if (memberError) {
+          console.error("Failed to add family owner:", memberError);
+          throw new Error(
+            "Family was created but membership failed. Please refresh.",
+          );
+        }
+        return mapFamilyRow(legacy.data as FamilyRow);
       }
       console.error("Failed to create family:", familyError);
       throw new Error("Unable to create family.");

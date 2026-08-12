@@ -4,6 +4,7 @@ import type {
   FamilyRow,
   ProfileRow,
 } from "@/types/family";
+import type { EventReminderRow, PushSubscriptionRow } from "@/types/reminder";
 
 export type Database = {
   public: {
@@ -61,6 +62,7 @@ export type Database = {
           name: string;
           created_by: string;
           invite_code: string;
+          timezone?: string;
           created_at?: string;
         };
         Update: {
@@ -68,6 +70,7 @@ export type Database = {
           name?: string;
           created_by?: string;
           invite_code?: string;
+          timezone?: string;
           created_at?: string;
         };
         Relationships: [];
@@ -100,6 +103,46 @@ export type Database = {
         Update: {
           id?: string;
           display_name?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      event_reminders: {
+        Row: EventReminderRow;
+        Insert: {
+          id?: string;
+          event_id: string;
+          offset_minutes: number;
+          remind_at: string;
+          sent_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          event_id?: string;
+          offset_minutes?: number;
+          remind_at?: string;
+          sent_at?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      push_subscriptions: {
+        Row: PushSubscriptionRow;
+        Insert: {
+          id?: string;
+          user_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          endpoint?: string;
+          p256dh?: string;
+          auth?: string;
           created_at?: string;
         };
         Relationships: [];

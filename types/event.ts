@@ -51,6 +51,8 @@ export type FamilyEvent = {
   locationLng?: number;
   locationPlaceId?: string;
   notes?: string;
+  /** Minutes before start; null/undefined means no reminder. */
+  reminderOffsetMinutes?: number | null;
 };
 
 /** Event fields used when creating a new event (before an id is assigned). */

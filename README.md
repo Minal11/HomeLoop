@@ -355,8 +355,127 @@ Tapping a location opens a small sheet:
 
 Coordinates are used when present; otherwise the location text is URL-encoded as a search.
 
+### Event reminders + Web Push
+
+HomeLoop supports **one reminder per event** and sends Web Push notifications to subscribed family devices.
+
+#### Behavior notes
+
+- Reminder options: No reminder, at event time, 10m / 30m / 1h / 2h / 1 day / 2 days / 1 week before
+- All-day events (no start time) use **9:00 AM** in the family IANA timezone
+- Cron runs every **5 minutes**; reminders may arrive a few minutes after `remind_at`
+- MVP notifies **all subscribed members of the event’s family** (not per-person targeting yet)
+
+#### 1. Run migrations
+
+In Supabase SQL Editor, in order:
+
+1. `supabase/migrations/010_family_timezone.sql`
+2. `supabase/migrations/011_event_reminders_and_push.sql`
+
+Backfill timezone if needed:
+
+```sql
+update public.families
+set timezone = 'America/Chicago'
+where timezone is distinct from 'America/Chicago';
+```
+
+#### 2. Generate VAPID keys
+
+On your computer:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Copy the **Public Key** and **Private Key**.
+
+#### 3. Vercel / local app env
+
+Add to `.env.local` and Vercel:
+
+```bash
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=your_public_key
+VAPID_PRIVATE_KEY=your_private_key
+VAPID_SUBJECT=mailto:you@example.com
+```
+
+Only the public key is used in the browser (`NEXT_PUBLIC_…`).  
+Never put the private key in `NEXT_PUBLIC_*`.
+
+#### 4. Supabase Edge Function secrets
+
+In Supabase Dashboard → **Edge Functions → Secrets**, set:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `VAPID_PUBLIC_KEY` (same as the public key above)
+- `VAPID_PRIVATE_KEY`
+- `VAPID_SUBJECT` (e.g. `mailto:you@example.com`)
+- `CRON_SECRET` (long random secret; never put this in `NEXT_PUBLIC_*` or the browser)
+
+Generate a secret, for example:
+
+```bash
+openssl rand -hex 32
+```
+
+#### 5. Deploy the Edge Function
+
+Install the [Supabase CLI](https://supabase.com/docs/guides/cli) if needed, then:
+
+```bash
+supabase login
+supabase link --project-ref YOUR_PROJECT_REF
+supabase functions deploy send-event-reminders --no-verify-jwt
+```
+
+`--no-verify-jwt` is required for scheduled invocation, but the function still
+rejects requests that do not send:
+
+```http
+Authorization: Bearer <CRON_SECRET>
+```
+
+Function source: `supabase/functions/send-event-reminders/`
+
+#### 6. Create the Cron schedule
+
+In Supabase Dashboard:
+
+1. Open **Edge Functions**
+2. Open `send-event-reminders`
+3. Add a **Schedule** / Cron job
+4. Cron expression: `*/5 * * * *` (every 5 minutes)
+5. Configure the schedule request header:
+
+```http
+Authorization: Bearer <CRON_SECRET>
+```
+
+If your project uses Database Cron + `net.http_post` instead, invoke the function URL every 5 minutes and include the same `Authorization` header.
+
+#### 7. Enable notifications in the app
+
+1. Open HomeLoop → **Family**
+2. Tap **Enable Notifications**
+3. Accept the browser/PWA permission prompt
+
+#### 8. Quick test (10–15 minutes ahead)
+
+1. Create an event starting ~15 minutes from now
+2. Set reminder to **10 minutes before**
+3. Confirm a row exists in `event_reminders` with `sent_at` null and a near-future `remind_at`
+4. Close / background HomeLoop
+5. Wait for the next Cron run after `remind_at`
+6. Confirm the notification arrives
+7. Tap it → `/events/{id}` opens
+8. Confirm `sent_at` is set (no duplicate)
+
 ## Security note
 
 Do not deploy publicly until you are comfortable with your auth + RLS setup.
 Do not put service-role / secret keys in the Next.js app or `.env.local` for the browser.
 Do not commit real Google API keys. Restrict keys by API and (for server keys) by IP where practical.
+Do not commit VAPID private keys or Supabase service-role keys.

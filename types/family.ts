@@ -5,6 +5,8 @@ export type Family = {
   name: string;
   createdBy: string;
   inviteCode: string;
+  /** IANA timezone for reminder scheduling (e.g. America/Chicago). */
+  timezone: string;
   createdAt: string;
 };
 
@@ -22,6 +24,7 @@ export type FamilyRow = {
   name: string;
   created_by: string;
   invite_code: string;
+  timezone?: string | null;
   created_at: string;
 };
 

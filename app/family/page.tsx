@@ -11,9 +11,30 @@ import {
   getFamilyMembers,
   regenerateInviteCode,
 } from "@/lib/families";
+import {
+  disablePushNotifications,
+  enablePushNotifications,
+  getNotificationStatus,
+  type NotificationStatus,
+} from "@/lib/push";
 import type { Family, FamilyMemberRow, FamilyRole } from "@/types/family";
 
 type LoadState = "loading" | "ready" | "error" | "no-family";
+
+function notificationStatusLabel(status: NotificationStatus): string {
+  switch (status) {
+    case "enabled":
+      return "Notifications enabled";
+    case "blocked":
+      return "Notifications blocked";
+    case "unsupported":
+      return "Notifications not supported on this device";
+    case "disabled":
+      return "Notifications not enabled";
+    default:
+      return "Notifications not enabled";
+  }
+}
 
 export default function FamilyPage() {
   const [family, setFamily] = useState<Family | null>(null);
@@ -23,6 +44,12 @@ export default function FamilyPage() {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
   const [regenError, setRegenError] = useState<string | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [notificationStatus, setNotificationStatus] =
+    useState<NotificationStatus>("default");
+  const [notificationBusy, setNotificationBusy] = useState(false);
+  const [notificationError, setNotificationError] = useState<string | null>(
+    null,
+  );
 
   const load = useCallback(async () => {
     setLoadState("loading");
@@ -96,6 +123,22 @@ export default function FamilyPage() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    void getNotificationStatus()
+      .then((status) => {
+        if (!cancelled) {
+          setNotificationStatus(status);
+        }
+      })
+      .catch((error: unknown) => {
+        console.error(error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   async function handleCopy() {
     if (!family) {
       return;
@@ -130,6 +173,48 @@ export default function FamilyPage() {
       );
     } finally {
       setIsRegenerating(false);
+    }
+  }
+
+  async function handleEnableNotifications() {
+    if (notificationBusy) {
+      return;
+    }
+    setNotificationBusy(true);
+    setNotificationError(null);
+    try {
+      const status = await enablePushNotifications();
+      setNotificationStatus(status);
+    } catch (error) {
+      console.error(error);
+      setNotificationError(
+        error instanceof Error
+          ? error.message
+          : "Unable to enable notifications.",
+      );
+    } finally {
+      setNotificationBusy(false);
+    }
+  }
+
+  async function handleDisableNotifications() {
+    if (notificationBusy) {
+      return;
+    }
+    setNotificationBusy(true);
+    setNotificationError(null);
+    try {
+      const status = await disablePushNotifications();
+      setNotificationStatus(status);
+    } catch (error) {
+      console.error(error);
+      setNotificationError(
+        error instanceof Error
+          ? error.message
+          : "Unable to disable notifications.",
+      );
+    } finally {
+      setNotificationBusy(false);
     }
   }
 
@@ -220,6 +305,60 @@ export default function FamilyPage() {
                 </li>
               ))}
             </ul>
+          </section>
+
+          <section className="rounded-3xl border border-surface-border bg-surface p-5 shadow-[var(--shadow)]">
+            <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted">
+              Notifications
+            </p>
+            <p className="mt-2 text-sm text-muted">
+              Get a push reminder for family events on this device. Permission
+              is only requested when you enable notifications here.
+            </p>
+            <p className="mt-3 text-sm font-bold text-foreground">
+              {notificationStatusLabel(notificationStatus)}
+            </p>
+            {family.timezone ? (
+              <p className="mt-1 text-xs text-muted">
+                Family timezone: {family.timezone}
+              </p>
+            ) : null}
+            <div className="mt-4 flex flex-col gap-3">
+              {notificationStatus !== "enabled" &&
+              notificationStatus !== "unsupported" ? (
+                <button
+                  type="button"
+                  disabled={
+                    notificationBusy || notificationStatus === "blocked"
+                  }
+                  onClick={() => void handleEnableNotifications()}
+                  className="w-full rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white transition hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  {notificationBusy ? "Working…" : "Enable Notifications"}
+                </button>
+              ) : null}
+              {notificationStatus === "enabled" ? (
+                <button
+                  type="button"
+                  disabled={notificationBusy}
+                  onClick={() => void handleDisableNotifications()}
+                  className="w-full rounded-2xl border border-surface-border bg-white/80 px-5 py-3.5 text-base font-bold text-foreground transition hover:bg-white disabled:opacity-70"
+                >
+                  {notificationBusy ? "Working…" : "Disable Notifications"}
+                </button>
+              ) : null}
+              {notificationStatus === "blocked" ? (
+                <p className="text-sm text-muted">
+                  Notifications are blocked in your browser/PWA settings. Enable
+                  them there, then try again.
+                </p>
+              ) : null}
+              {notificationError ? (
+                <p role="alert" className="text-sm font-semibold text-accent">
+                  {notificationError}
+                </p>
+              ) : null}
+            </div>
           </section>
 
           <section className="rounded-3xl border border-surface-border bg-surface p-5 shadow-[var(--shadow)]">

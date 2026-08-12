@@ -17,6 +17,7 @@ import {
   type FamilyEvent,
   type NewFamilyEventInput,
 } from "@/types/event";
+import { REMINDER_OPTIONS } from "@/types/reminder";
 import { getLocalDateIso } from "@/utils/events";
 import { getEventLocationLabel } from "@/utils/maps";
 
@@ -35,6 +36,8 @@ export type EventFormValues = {
   locationLng: number | null;
   locationPlaceId: string;
   notes: string;
+  /** Empty string = No reminder */
+  reminderOffsetMinutes: string;
 };
 
 export type EventFormErrors = Partial<
@@ -63,6 +66,7 @@ const INITIAL_VALUES: EventFormValues = {
   locationLng: null,
   locationPlaceId: "",
   notes: "",
+  reminderOffsetMinutes: "",
 };
 
 function createDefaultFormValues(): EventFormValues {
@@ -88,6 +92,10 @@ export function familyEventToFormValues(event: FamilyEvent): EventFormValues {
     locationLng: event.locationLng ?? null,
     locationPlaceId: event.locationPlaceId ?? "",
     notes: event.notes ?? "",
+    reminderOffsetMinutes:
+      event.reminderOffsetMinutes == null
+        ? ""
+        : String(event.reminderOffsetMinutes),
   };
 }
 
@@ -156,6 +164,10 @@ export function toNewFamilyEventInput(
     locationLng: values.locationLng ?? undefined,
     locationPlaceId: values.locationPlaceId.trim() || undefined,
     notes: values.notes.trim() || undefined,
+    reminderOffsetMinutes:
+      values.reminderOffsetMinutes === ""
+        ? null
+        : Number(values.reminderOffsetMinutes),
   };
 }
 
@@ -420,6 +432,34 @@ export default function EventForm({
             Search for a place, or type a custom spot like Home.
           </p>
         )}
+      </Field>
+
+      <Field
+        id={`${formId}-reminder`}
+        label="Reminder"
+        error={errors.reminderOffsetMinutes}
+      >
+        <select
+          id={`${formId}-reminder`}
+          name="reminder"
+          value={values.reminderOffsetMinutes}
+          onChange={(event) =>
+            updateField("reminderOffsetMinutes", event.target.value)
+          }
+          className={inputClassName(false)}
+        >
+          {REMINDER_OPTIONS.map((option) => (
+            <option
+              key={option.label}
+              value={option.value == null ? "" : String(option.value)}
+            >
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-muted">
+          All-day events (no start time) use 9:00 AM family local time.
+        </p>
       </Field>
 
       <Field id={`${formId}-notes`} label="Notes" error={errors.notes}>

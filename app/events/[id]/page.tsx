@@ -15,6 +15,7 @@ import {
   eventToMapLocation,
   getEventLocationLabel,
 } from "@/utils/maps";
+import { formatReminderLabel } from "@/utils/reminders";
 
 type PageState = "loading" | "ready" | "not-found" | "error";
 
@@ -156,6 +157,7 @@ function EventDetails({
     Boolean(event.endDate) && event.endDate !== event.startDate;
   const locationLabel = getEventLocationLabel(event);
   const mapLocation = eventToMapLocation(event);
+  const reminderLabel = formatReminderLabel(event.reminderOffsetMinutes);
   const [isMapOpen, setIsMapOpen] = useState(false);
 
   return (
@@ -216,6 +218,9 @@ function EventDetails({
                 ) : null}
               </dd>
             </div>
+          ) : null}
+          {reminderLabel ? (
+            <DetailRow label="Reminder" value={reminderLabel} />
           ) : null}
           {event.notes ? (
             <DetailRow label="Notes" value={event.notes} />
