@@ -28,6 +28,35 @@ function getVapidPublicKey(): string {
   return key;
 }
 
+async function removePushSubscriptionEndpoint(endpoint: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase
+    .from("push_subscriptions")
+    .delete()
+    .eq("endpoint", endpoint);
+
+  if (error) {
+    console.error("Failed to remove push subscription:", error);
+  }
+}
+
+/**
+ * Drop any existing PushManager subscription so we never reuse one created
+ * under a previous VAPID public key (Apple VapidPkHashMismatch).
+ */
+async function clearExistingPushSubscription(
+  registration: ServiceWorkerRegistration,
+): Promise<void> {
+  const existing = await registration.pushManager.getSubscription();
+  if (!existing) {
+    return;
+  }
+
+  const endpoint = existing.endpoint;
+  await existing.unsubscribe();
+  await removePushSubscriptionEndpoint(endpoint);
+}
+
 export async function getNotificationStatus(): Promise<NotificationStatus> {
   if (
     typeof window === "undefined" ||
@@ -74,15 +103,15 @@ export async function enablePushNotifications(): Promise<NotificationStatus> {
   });
   await navigator.serviceWorker.ready;
 
-  const existing = await registration.pushManager.getSubscription();
-  const subscription =
-    existing ??
-    (await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(
-        getVapidPublicKey(),
-      ) as BufferSource,
-    }));
+  // Always clear first after VAPID rotation — never reuse a stale subscription.
+  await clearExistingPushSubscription(registration);
+
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(
+      getVapidPublicKey(),
+    ) as BufferSource,
+  });
 
   const json = subscription.toJSON();
   const endpoint = json.endpoint;
@@ -139,16 +168,7 @@ export async function disablePushNotifications(): Promise<NotificationStatus> {
 
   const endpoint = subscription.endpoint;
   await subscription.unsubscribe();
-
-  const supabase = getSupabaseClient();
-  const { error } = await supabase
-    .from("push_subscriptions")
-    .delete()
-    .eq("endpoint", endpoint);
-
-  if (error) {
-    console.error("Failed to remove push subscription:", error);
-  }
+  await removePushSubscriptionEndpoint(endpoint);
 
   return Notification.permission === "denied" ? "blocked" : "disabled";
 }
