@@ -1,7 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type TouchEvent as ReactTouchEvent,
+} from "react";
 
 import EmptyState from "@/components/EmptyState";
 import EventCard from "@/components/EventCard";
@@ -15,12 +21,57 @@ import { getNextEvent, groupEventsByRelativeDay } from "@/utils/events";
 
 type LoadState = "loading" | "ready" | "error" | "no-family";
 
+const PULL_THRESHOLD_PX = 72;
+
 export default function Home() {
   const [events, setEvents] = useState<FamilyEvent[]>([]);
   const [loadState, setLoadState] = useState<LoadState>("loading");
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [pullDistance, setPullDistance] = useState(0);
 
-  const loadHome = useCallback(async () => {
+  const isFetchingRef = useRef(false);
+  const pullStartYRef = useRef<number | null>(null);
+  const pullActiveRef = useRef(false);
+
+  const refreshEvents = useCallback(async () => {
+    if (isFetchingRef.current) {
+      return;
+    }
+
+    isFetchingRef.current = true;
+    setIsRefreshing(true);
+
+    try {
+      const family = await getCurrentFamily();
+      if (!family) {
+        setEvents([]);
+        setLoadState("no-family");
+        return;
+      }
+
+      const nextEvents = await getEvents();
+      setEvents(nextEvents);
+      setLoadState("ready");
+    } catch (error) {
+      console.error(error);
+      setLoadState((current) => (current === "ready" ? current : "error"));
+    } finally {
+      isFetchingRef.current = false;
+      setIsRefreshing(false);
+      setPullDistance(0);
+      pullActiveRef.current = false;
+      pullStartYRef.current = null;
+    }
+  }, []);
+
+  const reloadHome = useCallback(async () => {
+    if (isFetchingRef.current) {
+      return;
+    }
+
+    isFetchingRef.current = true;
     setLoadState("loading");
+    setIsRefreshing(false);
 
     try {
       const family = await getCurrentFamily();
@@ -36,6 +87,11 @@ export default function Home() {
     } catch (error) {
       console.error(error);
       setLoadState("error");
+    } finally {
+      isFetchingRef.current = false;
+      setPullDistance(0);
+      pullActiveRef.current = false;
+      pullStartYRef.current = null;
     }
   }, []);
 
@@ -43,6 +99,11 @@ export default function Home() {
     let cancelled = false;
 
     void (async () => {
+      if (isFetchingRef.current) {
+        return;
+      }
+      isFetchingRef.current = true;
+
       try {
         const family = await getCurrentFamily();
         if (cancelled) {
@@ -65,16 +126,102 @@ export default function Home() {
         if (!cancelled) {
           setLoadState("error");
         }
+      } finally {
+        if (!cancelled) {
+          isFetchingRef.current = false;
+        }
       }
     })();
 
     return () => {
       cancelled = true;
+      isFetchingRef.current = false;
     };
   }, []);
 
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        void refreshEvents();
+      }
+    }
+
+    function handleWindowFocus() {
+      if (document.visibilityState === "visible") {
+        void refreshEvents();
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleWindowFocus);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleWindowFocus);
+    };
+  }, [refreshEvents]);
+
+  function canPullToRefresh() {
+    if (typeof window === "undefined") {
+      return false;
+    }
+    if (loadState !== "ready" && loadState !== "error") {
+      return false;
+    }
+    if (isFetchingRef.current || isRefreshing) {
+      return false;
+    }
+    return window.scrollY <= 0;
+  }
+
+  function handleTouchStart(event: ReactTouchEvent<HTMLDivElement>) {
+    if (!canPullToRefresh()) {
+      pullStartYRef.current = null;
+      pullActiveRef.current = false;
+      return;
+    }
+
+    pullStartYRef.current = event.touches[0]?.clientY ?? null;
+    pullActiveRef.current = true;
+  }
+
+  function handleTouchMove(event: ReactTouchEvent<HTMLDivElement>) {
+    if (!pullActiveRef.current || pullStartYRef.current == null) {
+      return;
+    }
+
+    if (window.scrollY > 0) {
+      pullStartYRef.current = null;
+      pullActiveRef.current = false;
+      setPullDistance(0);
+      return;
+    }
+
+    const currentY = event.touches[0]?.clientY ?? pullStartYRef.current;
+    const delta = Math.max(0, currentY - pullStartYRef.current);
+    const resisted = Math.min(delta * 0.45, 96);
+    setPullDistance(resisted);
+  }
+
+  function handleTouchEnd() {
+    if (!pullActiveRef.current) {
+      return;
+    }
+
+    const shouldRefresh = pullDistance >= PULL_THRESHOLD_PX;
+    pullActiveRef.current = false;
+    pullStartYRef.current = null;
+
+    if (shouldRefresh) {
+      void refreshEvents();
+      return;
+    }
+
+    setPullDistance(0);
+  }
+
   if (loadState === "no-family") {
-    return <FamilyOnboarding onFamilyReady={loadHome} />;
+    return <FamilyOnboarding onFamilyReady={() => void reloadHome()} />;
   }
 
   const now = new Date();
@@ -84,9 +231,37 @@ export default function Home() {
     : events;
   const sections = groupEventsByRelativeDay(remainingEvents, now);
   const hasEvents = events.length > 0;
+  const showPullHint = pullDistance > 8;
 
   return (
-    <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col px-5 pb-28 pt-8 sm:max-w-lg sm:pt-12">
+    <div
+      className="relative mx-auto flex w-full max-w-md flex-1 flex-col px-5 pb-28 pt-8 sm:max-w-lg sm:pt-12"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
+    >
+      {showPullHint || isRefreshing ? (
+        <div
+          className="pointer-events-none absolute inset-x-0 top-2 z-10 flex justify-center"
+          aria-live="polite"
+          style={{
+            transform: `translateY(${Math.max(pullDistance - 24, isRefreshing ? 8 : 0)}px)`,
+            opacity: isRefreshing
+              ? 1
+              : Math.min(pullDistance / PULL_THRESHOLD_PX, 1),
+          }}
+        >
+          <span className="rounded-full border border-surface-border bg-white/90 px-3 py-1 text-xs font-bold text-muted shadow-[var(--shadow)]">
+            {isRefreshing
+              ? "Refreshing…"
+              : pullDistance >= PULL_THRESHOLD_PX
+                ? "Release to refresh"
+                : "Pull to refresh"}
+          </span>
+        </div>
+      ) : null}
+
       <header className="animate-fade-up flex items-start justify-between gap-4">
         <div>
           <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
@@ -112,17 +287,30 @@ export default function Home() {
       </header>
 
       <main className="mt-8 flex flex-1 flex-col">
-        <h2
-          className="animate-fade-up font-display text-2xl font-medium tracking-tight text-foreground"
+        <div
+          className="animate-fade-up flex items-center justify-between gap-3"
           style={{ animationDelay: "60ms" }}
         >
-          Upcoming Events
-        </h2>
+          <h2 className="font-display text-2xl font-medium tracking-tight text-foreground">
+            Upcoming Events
+          </h2>
+          <button
+            type="button"
+            onClick={() => void refreshEvents()}
+            disabled={isRefreshing || loadState === "loading"}
+            aria-busy={isRefreshing}
+            aria-label="Refresh events"
+            title="Refresh events"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-surface-border bg-white/80 text-muted transition hover:border-accent/30 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshIcon spinning={isRefreshing} />
+          </button>
+        </div>
 
         {loadState === "loading" ? (
           <LoadingState />
         ) : loadState === "error" ? (
-          <ErrorState onRetry={() => void loadHome()} />
+          <ErrorState onRetry={() => void reloadHome()} />
         ) : !hasEvents ? (
           <div className="mt-6">
             <EmptyState href="/events/new" />
@@ -172,6 +360,24 @@ export default function Home() {
         </div>
       </div>
     </div>
+  );
+}
+
+function RefreshIcon({ spinning }: { spinning: boolean }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      className={["h-4 w-4", spinning ? "animate-spin" : ""].join(" ")}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M16.5 10a6.5 6.5 0 1 1-1.7-4.4" />
+      <path d="M16.5 3.5v4h-4" />
+    </svg>
   );
 }
 
