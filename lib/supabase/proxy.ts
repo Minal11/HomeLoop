@@ -39,13 +39,17 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname;
   const isLoginRoute = pathname === "/login" || pathname.startsWith("/login/");
+  const isShortcutApiRoute =
+    pathname === "/api/shortcuts/events" ||
+    pathname.startsWith("/api/shortcuts/events/");
   const isPublicAuthRoute =
     isLoginRoute ||
     pathname === "/forgot-password" ||
     pathname.startsWith("/forgot-password/") ||
     pathname === "/reset-password" ||
     pathname.startsWith("/reset-password/") ||
-    pathname.startsWith("/auth/");
+    pathname.startsWith("/auth/") ||
+    isShortcutApiRoute;
 
   if (!user && !isPublicAuthRoute) {
     const redirectUrl = request.nextUrl.clone();

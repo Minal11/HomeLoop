@@ -5,6 +5,7 @@ import type {
   ProfileRow,
 } from "@/types/family";
 import type { EventReminderRow, PushSubscriptionRow } from "@/types/reminder";
+import type { ShortcutTokenRow } from "@/types/shortcut";
 
 export type Database = {
   public: {
@@ -144,6 +145,28 @@ export type Database = {
           p256dh?: string;
           auth?: string;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      shortcut_tokens: {
+        Row: ShortcutTokenRow;
+        Insert: {
+          id?: string;
+          user_id: string;
+          token_hash: string;
+          name?: string;
+          created_at?: string;
+          last_used_at?: string | null;
+          revoked_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          token_hash?: string;
+          name?: string;
+          created_at?: string;
+          last_used_at?: string | null;
+          revoked_at?: string | null;
         };
         Relationships: [];
       };

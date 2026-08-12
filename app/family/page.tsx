@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import Heart from "@/components/Heart";
+import ShortcutTokensSection from "@/components/ShortcutTokensSection";
 import SignOutButton from "@/components/SignOutButton";
 import {
   getCurrentFamily,
@@ -360,6 +361,8 @@ export default function FamilyPage() {
               ) : null}
             </div>
           </section>
+
+          <ShortcutTokensSection />
 
           <section className="rounded-3xl border border-surface-border bg-surface p-5 shadow-[var(--shadow)]">
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-muted">
