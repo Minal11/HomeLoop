@@ -319,7 +319,12 @@ export default function Home() {
           <div className="mt-5 flex flex-col gap-7">
             {nextEvent ? (
               <section aria-label="Up next">
-                <EventCard event={nextEvent} variant="next" index={0} />
+                <EventCard
+                  event={nextEvent}
+                  variant="next"
+                  index={0}
+                  onDeleted={() => void refreshEvents()}
+                />
               </section>
             ) : null}
 
@@ -338,7 +343,11 @@ export default function Home() {
                 <ul className="flex list-none flex-col gap-3 p-0">
                   {section.events.map((event, index) => (
                     <li key={event.id}>
-                      <EventCard event={event} index={index + 1} />
+                      <EventCard
+                        event={event}
+                        index={index + 1}
+                        onDeleted={() => void refreshEvents()}
+                      />
                     </li>
                   ))}
                 </ul>
