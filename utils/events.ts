@@ -125,6 +125,7 @@ export function formatTime(time: string): string {
 export function formatEventDate(event: FamilyEvent): string {
   const start = parseDateOnly(event.startDate);
   const startLabel = start.toLocaleDateString("en-US", {
+    weekday: "short",
     month: "short",
     day: "numeric",
   });
@@ -134,15 +135,8 @@ export function formatEventDate(event: FamilyEvent): string {
   }
 
   const end = parseDateOnly(event.endDate);
-  const sameMonth =
-    start.getFullYear() === end.getFullYear() &&
-    start.getMonth() === end.getMonth();
-
-  if (sameMonth) {
-    return `${startLabel}–${end.getDate()}`;
-  }
-
   const endLabel = end.toLocaleDateString("en-US", {
+    weekday: "short",
     month: "short",
     day: "numeric",
   });
