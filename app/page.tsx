@@ -16,6 +16,7 @@ import Heart from "@/components/Heart";
 import SignOutButton from "@/components/SignOutButton";
 import { getCurrentFamily } from "@/lib/families";
 import { getEvents } from "@/lib/events";
+import { eventListKey } from "@/lib/recurrence-map";
 import type { FamilyEvent } from "@/types/event";
 import { getNextEvent, groupEventsByRelativeDay, filterEvents } from "@/utils/events";
 
@@ -365,7 +366,7 @@ export default function Home() {
           ) : (
             <ul className="mt-5 flex list-none flex-col gap-3 p-0">
               {searchResults.map((event, index) => (
-                <li key={event.id}>
+                <li key={eventListKey(event)}>
                   <EventCard
                     event={event}
                     index={index}
@@ -402,7 +403,7 @@ export default function Home() {
                 </h3>
                 <ul className="flex list-none flex-col gap-3 p-0">
                   {section.events.map((event, index) => (
-                    <li key={event.id}>
+                    <li key={eventListKey(event)}>
                       <EventCard
                         event={event}
                         index={index + 1}

@@ -14,10 +14,14 @@ import CategoryBadge from "@/components/CategoryBadge";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import MapOpenDialog from "@/components/MapOpenDialog";
 import MemberBadge from "@/components/MemberBadge";
+import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
 import { deleteEvent } from "@/lib/events";
+import { eventListKey } from "@/lib/recurrence-map";
 import type { FamilyEvent } from "@/types/event";
+import type { RecurrenceDeleteScope } from "@/types/recurrence";
 import { formatEventDate, formatTime } from "@/utils/events";
 import { eventToMapLocation, getEventLocationLabel } from "@/utils/maps";
+import { isRecurringRule } from "@/utils/recurrence";
 
 type EventCardProps = {
   event: FamilyEvent;
@@ -42,7 +46,8 @@ export default function EventCard({
 }: EventCardProps) {
   const router = useRouter();
   const reactId = useId();
-  const cardKey = `${event.id}-${reactId}`;
+  const cardKey = `${eventListKey(event)}-${reactId}`;
+  const isRecurring = isRecurringRule(event.recurrence);
 
   const isNext = variant === "next";
   const dateLabel = formatEventDate(event);
@@ -54,6 +59,7 @@ export default function EventCard({
   const [offset, setOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isRecurrenceDeleteOpen, setIsRecurrenceDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -132,7 +138,11 @@ export default function EventCard({
       setOffset(0);
       return;
     }
-    router.push(`/events/${event.id}`);
+    router.push(
+      event.occurrenceDate && isRecurring
+        ? `/events/${event.id}?on=${event.occurrenceDate}`
+        : `/events/${event.id}`,
+    );
   }
 
   function handlePointerDown(pointerEvent: ReactPointerEvent<HTMLDivElement>) {
@@ -222,12 +232,15 @@ export default function EventCard({
     clickEvent.preventDefault();
     clickEvent.stopPropagation();
     setDeleteError(null);
-    // Reset swipe before the modal opens so the card is not left translated.
     setOffset(0);
-    setIsDeleteOpen(true);
+    if (isRecurring) {
+      setIsRecurrenceDeleteOpen(true);
+    } else {
+      setIsDeleteOpen(true);
+    }
   }
 
-  async function handleDeleteConfirm() {
+  async function performDelete(scope: RecurrenceDeleteScope = "all") {
     if (isDeleting) {
       return;
     }
@@ -236,8 +249,12 @@ export default function EventCard({
     setDeleteError(null);
 
     try {
-      await deleteEvent(event.id);
+      await deleteEvent(event.id, {
+        scope,
+        occurrenceDate: event.occurrenceDate,
+      });
       setIsDeleteOpen(false);
+      setIsRecurrenceDeleteOpen(false);
       setOffset(0);
       onDeleted?.(event.id);
     } catch (error) {
@@ -245,6 +262,10 @@ export default function EventCard({
       setDeleteError("We couldn’t delete this event. Please try again.");
       setIsDeleting(false);
     }
+  }
+
+  async function handleDeleteConfirm() {
+    await performDelete("all");
   }
 
   return (
@@ -369,6 +390,22 @@ export default function EventCard({
           }
         }}
         onConfirm={() => void handleDeleteConfirm()}
+      />
+
+      <RecurrenceScopeDialog
+        open={isRecurrenceDeleteOpen}
+        mode="delete"
+        eventTitle={event.title}
+        isBusy={isDeleting}
+        errorMessage={deleteError}
+        onCancel={() => {
+          if (!isDeleting) {
+            setIsRecurrenceDeleteOpen(false);
+            setDeleteError(null);
+            setOffset(0);
+          }
+        }}
+        onConfirm={(scope) => void performDelete(scope)}
       />
     </>
   );

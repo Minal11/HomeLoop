@@ -1,32 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
 import CategoryBadge from "@/components/CategoryBadge";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import MapOpenDialog from "@/components/MapOpenDialog";
 import MemberBadge from "@/components/MemberBadge";
+import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
 import { deleteEvent, getEventById } from "@/lib/events";
 import type { FamilyEvent } from "@/types/event";
+import type { RecurrenceDeleteScope } from "@/types/recurrence";
 import { formatEventDate, formatTime } from "@/utils/events";
 import {
   eventToMapLocation,
   getEventLocationLabel,
 } from "@/utils/maps";
+import { describeRecurrence, isRecurringRule } from "@/utils/recurrence";
 import { formatReminderLabel } from "@/utils/reminders";
 
 type PageState = "loading" | "ready" | "not-found" | "error";
 
 export default function EventDetailsPage() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const eventId = params.id;
+  const occurrenceDate = searchParams.get("on");
 
   const [event, setEvent] = useState<FamilyEvent | null>(null);
   const [pageState, setPageState] = useState<PageState>("loading");
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isRecurrenceDeleteOpen, setIsRecurrenceDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
@@ -34,7 +40,7 @@ export default function EventDetailsPage() {
     setPageState("loading");
 
     try {
-      const nextEvent = await getEventById(eventId);
+      const nextEvent = await getEventById(eventId, occurrenceDate);
       if (!nextEvent) {
         setEvent(null);
         setPageState("not-found");
@@ -47,12 +53,12 @@ export default function EventDetailsPage() {
       console.error(error);
       setPageState("error");
     }
-  }, [eventId]);
+  }, [eventId, occurrenceDate]);
 
   useEffect(() => {
     let cancelled = false;
 
-    void getEventById(eventId)
+    void getEventById(eventId, occurrenceDate)
       .then((nextEvent) => {
         if (cancelled) {
           return;
@@ -77,9 +83,9 @@ export default function EventDetailsPage() {
     return () => {
       cancelled = true;
     };
-  }, [eventId]);
+  }, [eventId, occurrenceDate]);
 
-  async function handleDeleteConfirm() {
+  async function performDelete(scope: RecurrenceDeleteScope = "all") {
     if (!event || isDeleting) {
       return;
     }
@@ -88,7 +94,10 @@ export default function EventDetailsPage() {
     setDeleteError(null);
 
     try {
-      await deleteEvent(event.id);
+      await deleteEvent(event.id, {
+        scope,
+        occurrenceDate: occurrenceDate ?? event.occurrenceDate,
+      });
       router.push("/");
     } catch (error) {
       console.error(error);
@@ -96,6 +105,10 @@ export default function EventDetailsPage() {
       setIsDeleting(false);
     }
   }
+
+  const editHref = occurrenceDate
+    ? `/events/${eventId}/edit?on=${occurrenceDate}`
+    : `/events/${eventId}/edit`;
 
   return (
     <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col px-5 pb-10 pt-6 sm:max-w-lg sm:pt-10">
@@ -118,26 +131,46 @@ export default function EventDetailsPage() {
       ) : event ? (
         <EventDetails
           event={event}
+          editHref={editHref}
           onDelete={() => {
             setDeleteError(null);
-            setIsDeleteOpen(true);
+            if (isRecurringRule(event.recurrence)) {
+              setIsRecurrenceDeleteOpen(true);
+            } else {
+              setIsDeleteOpen(true);
+            }
           }}
         />
       ) : null}
 
       {event ? (
-        <DeleteConfirmDialog
-          open={isDeleteOpen}
-          eventTitle={event.title}
-          isDeleting={isDeleting}
-          errorMessage={deleteError}
-          onCancel={() => {
-            if (!isDeleting) {
-              setIsDeleteOpen(false);
-            }
-          }}
-          onConfirm={() => void handleDeleteConfirm()}
-        />
+        <>
+          <DeleteConfirmDialog
+            open={isDeleteOpen}
+            eventTitle={event.title}
+            isDeleting={isDeleting}
+            errorMessage={deleteError}
+            onCancel={() => {
+              if (!isDeleting) {
+                setIsDeleteOpen(false);
+              }
+            }}
+            onConfirm={() => void performDelete("all")}
+          />
+          <RecurrenceScopeDialog
+            open={isRecurrenceDeleteOpen}
+            mode="delete"
+            eventTitle={event.title}
+            isBusy={isDeleting}
+            errorMessage={deleteError}
+            onCancel={() => {
+              if (!isDeleting) {
+                setIsRecurrenceDeleteOpen(false);
+              }
+            }}
+            onConfirm={(scope) => void performDelete(scope)}
+          />
+        </>
       ) : null}
     </div>
   );
@@ -145,9 +178,11 @@ export default function EventDetailsPage() {
 
 function EventDetails({
   event,
+  editHref,
   onDelete,
 }: {
   event: FamilyEvent;
+  editHref: string;
   onDelete: () => void;
 }) {
   const dateLabel = formatEventDate(event);
@@ -158,6 +193,10 @@ function EventDetails({
   const locationLabel = getEventLocationLabel(event);
   const mapLocation = eventToMapLocation(event);
   const reminderLabel = formatReminderLabel(event.reminderOffsetMinutes);
+  const recurrenceLabel = describeRecurrence(
+    event.recurrence,
+    event.seriesId ? event.startDate : event.startDate,
+  );
   const [isMapOpen, setIsMapOpen] = useState(false);
 
   return (
@@ -219,6 +258,9 @@ function EventDetails({
               </dd>
             </div>
           ) : null}
+          {recurrenceLabel ? (
+            <DetailRow label="Repeats" value={recurrenceLabel} />
+          ) : null}
           {reminderLabel ? (
             <DetailRow label="Reminder" value={reminderLabel} />
           ) : null}
@@ -230,7 +272,7 @@ function EventDetails({
 
       <div className="mt-6 flex flex-col gap-3">
         <Link
-          href={`/events/${event.id}/edit`}
+          href={editHref}
           className="flex w-full items-center justify-center rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white shadow-[0_14px_28px_rgba(184,51,74,0.28)] transition hover:bg-accent-deep"
         >
           Edit

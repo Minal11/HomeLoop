@@ -1,27 +1,38 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import EventForm, { familyEventToFormValues } from "@/components/EventForm";
+import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
 import { getEventById, updateEvent } from "@/lib/events";
 import type { FamilyEvent, NewFamilyEventInput } from "@/types/event";
+import type { RecurrenceEditScope } from "@/types/recurrence";
+import { isRecurringRule } from "@/utils/recurrence";
 
 type PageState = "loading" | "ready" | "not-found" | "error";
 
 export default function EditEventPage() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const eventId = params.id;
+  const occurrenceDate = searchParams.get("on");
 
   const [event, setEvent] = useState<FamilyEvent | null>(null);
   const [pageState, setPageState] = useState<PageState>("loading");
+  const [pendingInput, setPendingInput] = useState<NewFamilyEventInput | null>(
+    null,
+  );
+  const [scopeOpen, setScopeOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    void getEventById(eventId)
+    void getEventById(eventId, occurrenceDate)
       .then((nextEvent) => {
         if (cancelled) {
           return;
@@ -46,22 +57,64 @@ export default function EditEventPage() {
     return () => {
       cancelled = true;
     };
-  }, [eventId]);
+  }, [eventId, occurrenceDate]);
+
+  function detailsHref() {
+    return occurrenceDate
+      ? `/events/${eventId}?on=${occurrenceDate}`
+      : `/events/${eventId}`;
+  }
+
+  async function applyUpdate(
+    input: NewFamilyEventInput,
+    scope: RecurrenceEditScope,
+  ) {
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const updated = await updateEvent(eventId, input, {
+        scope,
+        occurrenceDate: occurrenceDate ?? event?.occurrenceDate,
+      });
+      setScopeOpen(false);
+      setPendingInput(null);
+      if (scope === "this") {
+        router.push(`/events/${updated.id}`);
+      } else if (scope === "future") {
+        router.push(
+          updated.occurrenceDate
+            ? `/events/${updated.id}?on=${updated.startDate}`
+            : `/events/${updated.id}`,
+        );
+      } else {
+        router.push(detailsHref());
+      }
+    } catch (error) {
+      console.error(error);
+      setSaveError("We couldn’t save this event. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   async function handleSubmit(input: NewFamilyEventInput) {
-    await updateEvent(eventId, input);
-    router.push(`/events/${eventId}`);
+    if (event && isRecurringRule(event.recurrence)) {
+      setPendingInput(input);
+      setScopeOpen(true);
+      return;
+    }
+    await applyUpdate(input, "all");
   }
 
   function handleCancel() {
-    router.push(`/events/${eventId}`);
+    router.push(detailsHref());
   }
 
   return (
     <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col px-5 pb-6 pt-6 sm:max-w-lg sm:pt-10">
       <header className="animate-fade-up mb-6">
         <Link
-          href={`/events/${eventId}`}
+          href={detailsHref()}
           className="inline-flex items-center gap-2 rounded-xl py-1 text-sm font-bold text-muted transition hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
         >
           <span aria-hidden="true">←</span>
@@ -98,7 +151,7 @@ export default function EditEventPage() {
             We couldn’t load this event.
           </p>
           <Link
-            href={`/events/${eventId}`}
+            href={detailsHref()}
             className="mt-6 inline-flex rounded-2xl bg-accent px-5 py-3 text-sm font-bold text-white transition hover:bg-accent-deep"
           >
             Back to event
@@ -110,6 +163,28 @@ export default function EditEventPage() {
           onSubmit={handleSubmit}
           onCancel={handleCancel}
           submitLabel="Save Changes"
+        />
+      ) : null}
+
+      {event ? (
+        <RecurrenceScopeDialog
+          open={scopeOpen}
+          mode="edit"
+          eventTitle={event.title}
+          isBusy={isSaving}
+          errorMessage={saveError}
+          onCancel={() => {
+            if (!isSaving) {
+              setScopeOpen(false);
+              setPendingInput(null);
+              setSaveError(null);
+            }
+          }}
+          onConfirm={(scope) => {
+            if (pendingInput) {
+              void applyUpdate(pendingInput, scope);
+            }
+          }}
         />
       ) : null}
     </div>

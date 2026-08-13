@@ -1,3 +1,5 @@
+import type { RecurrenceRule } from "@/types/recurrence";
+
 export const FAMILY_MEMBERS = ["Minal", "Ankush", "Ziva", "Family"] as const;
 
 export type FamilyMember = (typeof FAMILY_MEMBERS)[number];
@@ -53,10 +55,22 @@ export type FamilyEvent = {
   notes?: string;
   /** Minutes before start; null/undefined means no reminder. */
   reminderOffsetMinutes?: number | null;
+  /** Present when this event (or its series master) repeats. */
+  recurrence?: RecurrenceRule | null;
+  /**
+   * Series master id for an expanded occurrence.
+   * Equals `id` for the master row / non-expanded views.
+   */
+  seriesId?: string;
+  /** Occurrence calendar date for an expanded virtual item. */
+  occurrenceDate?: string;
 };
 
 /** Event fields used when creating a new event (before an id is assigned). */
-export type NewFamilyEventInput = Omit<FamilyEvent, "id">;
+export type NewFamilyEventInput = Omit<
+  FamilyEvent,
+  "id" | "seriesId" | "occurrenceDate"
+>;
 
 /** Database row shape for the Supabase `events` table (snake_case). */
 export type EventRow = {
@@ -79,6 +93,10 @@ export type EventRow = {
   created_by: string | null;
   /** Family that owns / shares this event. */
   family_id: string | null;
+  recurrence_frequency?: string | null;
+  recurrence_interval?: number | null;
+  recurrence_weekdays?: number[] | null;
+  recurrence_end_date?: string | null;
   created_at: string;
   updated_at: string;
 };

@@ -5,12 +5,17 @@ import {
 import { createServiceClient } from "@/lib/supabase/admin";
 import type { EventCategory, EventRow, FamilyEvent } from "@/types/event";
 import { EVENT_CATEGORIES } from "@/types/event";
+import type { RecurrenceFrequency, RecurrenceRule, WeekdayIndex } from "@/types/recurrence";
 import type { ReminderOffsetMinutes } from "@/types/reminder";
 import {
   calculateRemindAtUtc,
   isReminderOffsetMinutes,
   zonedLocalDateTimeToUtc,
 } from "@/utils/reminders";
+import {
+  isRecurrenceFrequency,
+  normalizeRecurrenceRule,
+} from "@/utils/recurrence";
 
 export type ShortcutEventPayload = {
   title?: unknown;
@@ -24,6 +29,8 @@ export type ShortcutEventPayload = {
   category?: unknown;
   notes?: unknown;
   reminderMinutes?: unknown;
+  /** Optional future recurrence support; omitted = one-time event. */
+  recurrence?: unknown;
   // Intentionally ignored if present — never trust client IDs.
   family_id?: unknown;
   familyId?: unknown;
@@ -101,6 +108,39 @@ function normalizeTimeInput(value: string | null): string | null {
   }
 
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function parseOptionalRecurrence(value: unknown): RecurrenceRule | null {
+  if (value == null) {
+    return null;
+  }
+  if (typeof value !== "object") {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const frequencyRaw = asTrimmedString(record.frequency);
+  if (!frequencyRaw || !isRecurrenceFrequency(frequencyRaw)) {
+    return null;
+  }
+  const frequency = frequencyRaw as RecurrenceFrequency;
+  const interval = Number(record.interval ?? 1);
+  const endDate = asTrimmedString(record.endDate);
+  const weekdays = Array.isArray(record.weekdays)
+    ? (record.weekdays.filter(
+        (day): day is WeekdayIndex =>
+          typeof day === "number" &&
+          Number.isInteger(day) &&
+          day >= 0 &&
+          day <= 6,
+      ) as WeekdayIndex[])
+    : undefined;
+
+  return normalizeRecurrenceRule({
+    frequency,
+    interval: Number.isFinite(interval) ? interval : 1,
+    weekdays,
+    endDate,
+  });
 }
 
 function isEventCategory(value: string): value is EventCategory {
@@ -339,6 +379,8 @@ export async function createEventFromShortcut(input: {
     };
   }
 
+  const recurrence = parseOptionalRecurrence(input.body.recurrence);
+
   const mapped = mapFamilyEventInputToRow({
     title,
     startDate: date,
@@ -348,19 +390,60 @@ export async function createEventFromShortcut(input: {
     location: location ?? undefined,
     notes: notes ?? undefined,
     reminderOffsetMinutes,
+    recurrence,
   });
 
-  const { data: inserted, error: insertError } = await supabase
-    .from("events")
-    .insert({
-      ...mapped,
-      created_by: input.userId,
-      family_id: familyId,
-    })
-    .select(
-      "id, title, start_date, start_time, end_date, end_time, assigned_to, category, location, location_name, location_address, location_lat, location_lng, location_place_id, notes, created_by, family_id, created_at, updated_at",
-    )
-    .single();
+  const selectWithRecurrence =
+    "id, title, start_date, start_time, end_date, end_time, assigned_to, category, location, location_name, location_address, location_lat, location_lng, location_place_id, notes, created_by, family_id, recurrence_frequency, recurrence_interval, recurrence_weekdays, recurrence_end_date, created_at, updated_at";
+  const selectLegacy =
+    "id, title, start_date, start_time, end_date, end_time, assigned_to, category, location, location_name, location_address, location_lat, location_lng, location_place_id, notes, created_by, family_id, created_at, updated_at";
+
+  let inserted: EventRow | null = null;
+  let insertError: unknown = null;
+
+  {
+    const result = await supabase
+      .from("events")
+      .insert({
+        ...mapped,
+        created_by: input.userId,
+        family_id: familyId,
+      })
+      .select(selectWithRecurrence)
+      .single();
+    inserted = (result.data as EventRow | null) ?? null;
+    insertError = result.error;
+  }
+
+  if (insertError) {
+    const withoutRecurrence = {
+      title: mapped.title,
+      start_date: mapped.start_date,
+      start_time: mapped.start_time,
+      end_date: mapped.end_date,
+      end_time: mapped.end_time,
+      assigned_to: mapped.assigned_to,
+      category: mapped.category,
+      location: mapped.location,
+      location_name: mapped.location_name,
+      location_address: mapped.location_address,
+      location_lat: mapped.location_lat,
+      location_lng: mapped.location_lng,
+      location_place_id: mapped.location_place_id,
+      notes: mapped.notes,
+    };
+    const result = await supabase
+      .from("events")
+      .insert({
+        ...withoutRecurrence,
+        created_by: input.userId,
+        family_id: familyId,
+      })
+      .select(selectLegacy)
+      .single();
+    inserted = (result.data as EventRow | null) ?? null;
+    insertError = result.error;
+  }
 
   if (insertError || !inserted) {
     console.error("Shortcut event insert failed:", insertError);
@@ -374,7 +457,7 @@ export async function createEventFromShortcut(input: {
     };
   }
 
-  const created: FamilyEvent = mapEventRowToFamilyEvent(inserted as EventRow);
+  const created: FamilyEvent = mapEventRowToFamilyEvent(inserted);
 
   if (reminderOffsetMinutes != null) {
     await syncReminderWithServiceClient({

@@ -35,6 +35,7 @@ export type EventReminderRow = {
   offset_minutes: number;
   remind_at: string;
   sent_at: string | null;
+  last_reminded_occurrence_date?: string | null;
   created_at: string;
 };
 

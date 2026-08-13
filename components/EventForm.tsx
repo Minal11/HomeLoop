@@ -17,9 +17,17 @@ import {
   type FamilyEvent,
   type NewFamilyEventInput,
 } from "@/types/event";
+import type { RecurrenceFrequency, WeekdayIndex } from "@/types/recurrence";
 import { REMINDER_OPTIONS } from "@/types/reminder";
 import { getLocalDateIso } from "@/utils/events";
 import { getEventLocationLabel } from "@/utils/maps";
+import {
+  normalizeRecurrenceRule,
+  weekdayIndexFromDateOnly,
+} from "@/utils/recurrence";
+
+type RepeatPreset = "none" | "daily" | "weekly" | "monthly" | "yearly" | "custom";
+type CustomUnit = "day" | "week" | "month" | "year";
 
 export type EventFormValues = {
   title: string;
@@ -38,6 +46,12 @@ export type EventFormValues = {
   notes: string;
   /** Empty string = No reminder */
   reminderOffsetMinutes: string;
+  repeatPreset: RepeatPreset;
+  customInterval: string;
+  customUnit: CustomUnit;
+  customWeekdays: WeekdayIndex[];
+  endsMode: "never" | "on";
+  recurrenceEndDate: string;
 };
 
 export type EventFormErrors = Partial<
@@ -67,7 +81,85 @@ const INITIAL_VALUES: EventFormValues = {
   locationPlaceId: "",
   notes: "",
   reminderOffsetMinutes: "",
+  repeatPreset: "none",
+  customInterval: "1",
+  customUnit: "week",
+  customWeekdays: [],
+  endsMode: "never",
+  recurrenceEndDate: "",
 };
+
+const WEEKDAY_OPTIONS: { value: WeekdayIndex; label: string }[] = [
+  { value: 0, label: "Sun" },
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+];
+
+function recurrenceToFormFields(event: FamilyEvent): Pick<
+  EventFormValues,
+  | "repeatPreset"
+  | "customInterval"
+  | "customUnit"
+  | "customWeekdays"
+  | "endsMode"
+  | "recurrenceEndDate"
+> {
+  const rule = normalizeRecurrenceRule(event.recurrence ?? null);
+  if (!rule) {
+    return {
+      repeatPreset: "none",
+      customInterval: "1",
+      customUnit: "week",
+      customWeekdays: [],
+      endsMode: "never",
+      recurrenceEndDate: "",
+    };
+  }
+
+  const isSimple =
+    rule.interval === 1 &&
+    (rule.frequency !== "weekly" ||
+      !rule.weekdays ||
+      rule.weekdays.length <= 1);
+
+  if (isSimple) {
+    return {
+      repeatPreset: rule.frequency,
+      customInterval: "1",
+      customUnit:
+        rule.frequency === "daily"
+          ? "day"
+          : rule.frequency === "weekly"
+            ? "week"
+            : rule.frequency === "monthly"
+              ? "month"
+              : "year",
+      customWeekdays: rule.weekdays ?? [],
+      endsMode: rule.endDate ? "on" : "never",
+      recurrenceEndDate: rule.endDate ?? "",
+    };
+  }
+
+  return {
+    repeatPreset: "custom",
+    customInterval: String(rule.interval),
+    customUnit:
+      rule.frequency === "daily"
+        ? "day"
+        : rule.frequency === "weekly"
+          ? "week"
+          : rule.frequency === "monthly"
+            ? "month"
+            : "year",
+    customWeekdays: rule.weekdays ?? [],
+    endsMode: rule.endDate ? "on" : "never",
+    recurrenceEndDate: rule.endDate ?? "",
+  };
+}
 
 function createDefaultFormValues(): EventFormValues {
   return {
@@ -96,6 +188,7 @@ export function familyEventToFormValues(event: FamilyEvent): EventFormValues {
       event.reminderOffsetMinutes == null
         ? ""
         : String(event.reminderOffsetMinutes),
+    ...recurrenceToFormFields(event),
   };
 }
 
@@ -138,7 +231,69 @@ export function validateEventForm(values: EventFormValues): EventFormErrors {
     errors.endTime = "End time can’t be earlier than the start time.";
   }
 
+  if (values.repeatPreset !== "none") {
+    if (values.repeatPreset === "custom") {
+      const interval = Number(values.customInterval);
+      if (!Number.isInteger(interval) || interval < 1) {
+        errors.customInterval = "Enter a whole number of 1 or more.";
+      }
+      if (values.customUnit === "week" && values.customWeekdays.length === 0) {
+        errors.customWeekdays = "Choose at least one weekday.";
+      }
+    }
+
+    if (values.endsMode === "on") {
+      if (!values.recurrenceEndDate) {
+        errors.recurrenceEndDate = "Choose when the repeats should end.";
+      } else if (
+        values.startDate &&
+        values.recurrenceEndDate < values.startDate
+      ) {
+        errors.recurrenceEndDate = "End date can’t be before the start date.";
+      }
+    }
+  }
+
   return errors;
+}
+
+function buildRecurrenceFromForm(values: EventFormValues) {
+  if (values.repeatPreset === "none") {
+    return null;
+  }
+
+  const endDate =
+    values.endsMode === "on" && values.recurrenceEndDate
+      ? values.recurrenceEndDate
+      : null;
+
+  if (values.repeatPreset !== "custom") {
+    const frequency = values.repeatPreset as RecurrenceFrequency;
+    return normalizeRecurrenceRule({
+      frequency,
+      interval: 1,
+      weekdays:
+        frequency === "weekly" && values.startDate
+          ? [weekdayIndexFromDateOnly(values.startDate)]
+          : undefined,
+      endDate,
+    });
+  }
+
+  const unitToFrequency: Record<CustomUnit, RecurrenceFrequency> = {
+    day: "daily",
+    week: "weekly",
+    month: "monthly",
+    year: "yearly",
+  };
+
+  const frequency = unitToFrequency[values.customUnit];
+  return normalizeRecurrenceRule({
+    frequency,
+    interval: Number(values.customInterval) || 1,
+    weekdays: frequency === "weekly" ? values.customWeekdays : undefined,
+    endDate,
+  });
 }
 
 export function toNewFamilyEventInput(
@@ -168,6 +323,7 @@ export function toNewFamilyEventInput(
       values.reminderOffsetMinutes === ""
         ? null
         : Number(values.reminderOffsetMinutes),
+    recurrence: buildRecurrenceFromForm(values),
   };
 }
 
@@ -433,6 +589,176 @@ export default function EventForm({
           </p>
         )}
       </Field>
+
+      <Field
+        id={`${formId}-repeat`}
+        label="Repeat"
+        error={errors.repeatPreset}
+      >
+        <select
+          id={`${formId}-repeat`}
+          name="repeat"
+          value={values.repeatPreset}
+          onChange={(event) => {
+            const next = event.target.value as RepeatPreset;
+            setValues((current) => {
+              const updated: EventFormValues = {
+                ...current,
+                repeatPreset: next,
+                customWeekdays:
+                  next === "custom" &&
+                  current.customUnit === "week" &&
+                  current.customWeekdays.length === 0 &&
+                  current.startDate
+                    ? [weekdayIndexFromDateOnly(current.startDate)]
+                    : current.customWeekdays,
+              };
+              if (touchedSubmit) {
+                setErrors(validateEventForm(updated));
+              }
+              return updated;
+            });
+          }}
+          className={inputClassName(false)}
+        >
+          <option value="none">Does not repeat</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+          <option value="custom">Custom</option>
+        </select>
+      </Field>
+
+      {values.repeatPreset === "custom" ? (
+        <div className="space-y-4 rounded-3xl border border-surface-border bg-white/55 p-4">
+          <div className="grid grid-cols-[1fr_1.2fr] gap-3">
+            <Field
+              id={`${formId}-customInterval`}
+              label="Repeat every"
+              error={errors.customInterval}
+              required
+            >
+              <input
+                id={`${formId}-customInterval`}
+                type="number"
+                min={1}
+                step={1}
+                value={values.customInterval}
+                onChange={(event) =>
+                  updateField("customInterval", event.target.value)
+                }
+                className={inputClassName(Boolean(errors.customInterval))}
+              />
+            </Field>
+            <Field id={`${formId}-customUnit`} label="Unit" required>
+              <select
+                id={`${formId}-customUnit`}
+                value={values.customUnit}
+                onChange={(event) =>
+                  updateField("customUnit", event.target.value as CustomUnit)
+                }
+                className={inputClassName(false)}
+              >
+                <option value="day">Day</option>
+                <option value="week">Week</option>
+                <option value="month">Month</option>
+                <option value="year">Year</option>
+              </select>
+            </Field>
+          </div>
+
+          {values.customUnit === "week" ? (
+            <div className="flex flex-col gap-2">
+              <p className="text-sm font-bold text-foreground">Repeat on</p>
+              <div className="flex flex-wrap gap-2">
+                {WEEKDAY_OPTIONS.map((day) => {
+                  const selected = values.customWeekdays.includes(day.value);
+                  return (
+                    <button
+                      key={day.value}
+                      type="button"
+                      aria-pressed={selected}
+                      onClick={() => {
+                        setValues((current) => {
+                          const set = new Set(current.customWeekdays);
+                          if (set.has(day.value)) {
+                            set.delete(day.value);
+                          } else {
+                            set.add(day.value);
+                          }
+                          const updated = {
+                            ...current,
+                            customWeekdays: Array.from(set).sort(
+                              (a, b) => a - b,
+                            ) as WeekdayIndex[],
+                          };
+                          if (touchedSubmit) {
+                            setErrors(validateEventForm(updated));
+                          }
+                          return updated;
+                        });
+                      }}
+                      className={[
+                        "rounded-full px-3 py-2 text-sm font-bold transition",
+                        selected
+                          ? "bg-accent text-white"
+                          : "border border-surface-border bg-white/80 text-foreground",
+                      ].join(" ")}
+                    >
+                      {day.label}
+                    </button>
+                  );
+                })}
+              </div>
+              {errors.customWeekdays ? (
+                <p role="alert" className="text-sm font-semibold text-accent">
+                  {errors.customWeekdays}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {values.repeatPreset !== "none" ? (
+        <div className="space-y-3">
+          <Field id={`${formId}-endsMode`} label="Ends">
+            <select
+              id={`${formId}-endsMode`}
+              value={values.endsMode}
+              onChange={(event) =>
+                updateField(
+                  "endsMode",
+                  event.target.value as EventFormValues["endsMode"],
+                )
+              }
+              className={inputClassName(false)}
+            >
+              <option value="never">Never</option>
+              <option value="on">On Date</option>
+            </select>
+          </Field>
+          {values.endsMode === "on" ? (
+            <Field
+              id={`${formId}-recurrenceEndDate`}
+              label="End date"
+              error={errors.recurrenceEndDate}
+              required
+            >
+              <input
+                id={`${formId}-recurrenceEndDate`}
+                type="date"
+                value={values.recurrenceEndDate}
+                onChange={(event) =>
+                  updateField("recurrenceEndDate", event.target.value)
+                }
+                className={inputClassName(Boolean(errors.recurrenceEndDate))}
+              />
+            </Field>
+          ) : null}
+        </div>
+      ) : null}
 
       <Field
         id={`${formId}-reminder`}

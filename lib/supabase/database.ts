@@ -5,6 +5,7 @@ import type {
   ProfileRow,
 } from "@/types/family";
 import type { EventReminderRow, PushSubscriptionRow } from "@/types/reminder";
+import type { EventExceptionRow } from "@/types/recurrence";
 import type { ShortcutTokenRow } from "@/types/shortcut";
 
 export type Database = {
@@ -30,6 +31,10 @@ export type Database = {
           notes?: string | null;
           created_by: string;
           family_id: string;
+          recurrence_frequency?: string | null;
+          recurrence_interval?: number | null;
+          recurrence_weekdays?: number[] | null;
+          recurrence_end_date?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -51,6 +56,10 @@ export type Database = {
           notes?: string | null;
           created_by?: string;
           family_id?: string;
+          recurrence_frequency?: string | null;
+          recurrence_interval?: number | null;
+          recurrence_weekdays?: number[] | null;
+          recurrence_end_date?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -116,6 +125,7 @@ export type Database = {
           offset_minutes: number;
           remind_at: string;
           sent_at?: string | null;
+          last_reminded_occurrence_date?: string | null;
           created_at?: string;
         };
         Update: {
@@ -124,6 +134,27 @@ export type Database = {
           offset_minutes?: number;
           remind_at?: string;
           sent_at?: string | null;
+          last_reminded_occurrence_date?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      event_exceptions: {
+        Row: EventExceptionRow;
+        Insert: {
+          id?: string;
+          series_event_id: string;
+          occurrence_date: string;
+          exception_type: string;
+          override_event_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          series_event_id?: string;
+          occurrence_date?: string;
+          exception_type?: string;
+          override_event_id?: string | null;
           created_at?: string;
         };
         Relationships: [];
