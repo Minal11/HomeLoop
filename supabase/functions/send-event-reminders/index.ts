@@ -8,10 +8,21 @@
 //   VAPID_SUBJECT  (mailto:you@example.com)
 //   CRON_SECRET    (required Authorization: Bearer <CRON_SECRET>)
 
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import webpush from "npm:web-push@3.6.7";
 
-import { formatReminderNotificationBody } from "./reminders.ts";
+import {
+  addDaysToDateOnly,
+  getNextOccurrenceDate,
+  isRecurringRule,
+  recurrenceRuleFromEventColumns,
+  type RecurrenceRule,
+} from "./recurrence.ts";
+import {
+  calculateRemindAtUtc,
+  formatReminderNotificationBody,
+  occurrenceDateFromRemindAt,
+} from "./reminders.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,6 +35,7 @@ type ReminderRow = {
   event_id: string;
   offset_minutes: number;
   remind_at: string;
+  last_reminded_occurrence_date?: string | null;
 };
 
 type EventRow = {
@@ -32,6 +44,10 @@ type EventRow = {
   start_date: string;
   start_time: string | null;
   family_id: string | null;
+  recurrence_frequency?: string | null;
+  recurrence_interval?: number | null;
+  recurrence_weekdays?: number[] | null;
+  recurrence_end_date?: string | null;
 };
 
 type FamilyRow = {
@@ -50,6 +66,10 @@ type SubscriptionRow = {
   p256dh: string;
   auth: string;
 };
+
+const EVENT_SELECT_WITH_RECURRENCE =
+  "id, title, start_date, start_time, family_id, recurrence_frequency, recurrence_interval, recurrence_weekdays, recurrence_end_date";
+const EVENT_SELECT_BASIC = "id, title, start_date, start_time, family_id";
 
 function jsonResponse(
   body: Record<string, unknown>,
@@ -105,6 +125,151 @@ function reminderPhrase(offsetMinutes: number): string {
   }
 }
 
+function isMissingColumnError(error: unknown): boolean {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const message = `${
+    "message" in error ? (error as { message?: string }).message : ""
+  } ${"details" in error ? (error as { details?: string }).details : ""}`
+    .toLowerCase();
+  return (
+    message.includes("does not exist") ||
+    message.includes("could not find") ||
+    message.includes("schema cache") ||
+    message.includes("column")
+  );
+}
+
+async function loadEvent(
+  supabase: SupabaseClient,
+  eventId: string,
+): Promise<{ event: EventRow | null; error: unknown }> {
+  const withRecurrence = await supabase
+    .from("events")
+    .select(EVENT_SELECT_WITH_RECURRENCE)
+    .eq("id", eventId)
+    .maybeSingle();
+
+  if (!withRecurrence.error) {
+    return { event: (withRecurrence.data as EventRow | null) ?? null, error: null };
+  }
+
+  if (isMissingColumnError(withRecurrence.error)) {
+    const basic = await supabase
+      .from("events")
+      .select(EVENT_SELECT_BASIC)
+      .eq("id", eventId)
+      .maybeSingle();
+    return {
+      event: (basic.data as EventRow | null) ?? null,
+      error: basic.error,
+    };
+  }
+
+  return { event: null, error: withRecurrence.error };
+}
+
+async function loadSkippedOccurrenceDates(
+  supabase: SupabaseClient,
+  seriesEventId: string,
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("event_exceptions")
+    .select("occurrence_date, exception_type")
+    .eq("series_event_id", seriesEventId);
+
+  if (error) {
+    if (isMissingColumnError(error)) {
+      return [];
+    }
+    console.error("Failed to load event exceptions:", error);
+    return [];
+  }
+
+  return ((data ?? []) as Array<{ occurrence_date: string }>)
+    .map((row) => row.occurrence_date)
+    .filter(Boolean);
+}
+
+async function markReminderSent(
+  supabase: SupabaseClient,
+  reminderId: string,
+  sentAt: string,
+): Promise<void> {
+  await supabase
+    .from("event_reminders")
+    .update({ sent_at: sentAt })
+    .eq("id", reminderId)
+    .is("sent_at", null);
+}
+
+async function completeReminderAfterDelivery(input: {
+  supabase: SupabaseClient;
+  reminder: ReminderRow;
+  event: EventRow;
+  recurrence: RecurrenceRule | null;
+  occurrenceDate: string;
+  timeZone: string;
+  nowIso: string;
+}): Promise<void> {
+  const { supabase, reminder, event, recurrence, occurrenceDate, timeZone, nowIso } =
+    input;
+
+  if (!isRecurringRule(recurrence)) {
+    await markReminderSent(supabase, reminder.id, nowIso);
+    return;
+  }
+
+  const skipped = await loadSkippedOccurrenceDates(supabase, event.id);
+  const nextOccurrence = getNextOccurrenceDate({
+    seriesStartDate: event.start_date,
+    rule: recurrence,
+    fromDate: addDaysToDateOnly(occurrenceDate, 1),
+    cancelledDates: skipped,
+  });
+
+  if (!nextOccurrence) {
+    const terminalUpdate: Record<string, unknown> = {
+      sent_at: nowIso,
+      last_reminded_occurrence_date: occurrenceDate,
+    };
+    const { error } = await supabase
+      .from("event_reminders")
+      .update(terminalUpdate)
+      .eq("id", reminder.id)
+      .is("sent_at", null);
+
+    if (error && isMissingColumnError(error)) {
+      await markReminderSent(supabase, reminder.id, nowIso);
+    }
+    return;
+  }
+
+  const nextRemindAt = calculateRemindAtUtc({
+    startDate: nextOccurrence,
+    startTime: event.start_time,
+    offsetMinutes: reminder.offset_minutes,
+    timeZone,
+  });
+
+  const advanceUpdate: Record<string, unknown> = {
+    sent_at: null,
+    remind_at: nextRemindAt.toISOString(),
+    last_reminded_occurrence_date: occurrenceDate,
+  };
+
+  const { error } = await supabase
+    .from("event_reminders")
+    .update(advanceUpdate)
+    .eq("id", reminder.id);
+
+  if (error && isMissingColumnError(error)) {
+    // Column missing — fall back to one-time completion.
+    await markReminderSent(supabase, reminder.id, nowIso);
+  }
+}
+
 Deno.serve(async (request: Request) => {
   if (request.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -139,27 +304,40 @@ Deno.serve(async (request: Request) => {
     const nowIso = new Date().toISOString();
     const { data: dueReminders, error: dueError } = await supabase
       .from("event_reminders")
-      .select("id, event_id, offset_minutes, remind_at")
+      .select("id, event_id, offset_minutes, remind_at, last_reminded_occurrence_date")
       .is("sent_at", null)
       .lte("remind_at", nowIso)
       .order("remind_at", { ascending: true })
       .limit(50);
 
-    if (dueError) {
+    let reminders: ReminderRow[];
+    if (dueError && isMissingColumnError(dueError)) {
+      const fallback = await supabase
+        .from("event_reminders")
+        .select("id, event_id, offset_minutes, remind_at")
+        .is("sent_at", null)
+        .lte("remind_at", nowIso)
+        .order("remind_at", { ascending: true })
+        .limit(50);
+      if (fallback.error) {
+        throw fallback.error;
+      }
+      reminders = (fallback.data ?? []) as ReminderRow[];
+    } else if (dueError) {
       throw dueError;
+    } else {
+      reminders = (dueReminders ?? []) as ReminderRow[];
     }
 
-    const reminders = (dueReminders ?? []) as ReminderRow[];
     let sentCount = 0;
     let removedSubs = 0;
     let deferredCount = 0;
 
     for (const reminder of reminders) {
-      const { data: eventData, error: eventError } = await supabase
-        .from("events")
-        .select("id, title, start_date, start_time, family_id")
-        .eq("id", reminder.event_id)
-        .maybeSingle();
+      const { event: eventData, error: eventError } = await loadEvent(
+        supabase,
+        reminder.event_id,
+      );
 
       if (eventError || !eventData?.family_id) {
         console.error(
@@ -168,15 +346,12 @@ Deno.serve(async (request: Request) => {
           eventError,
         );
         // Event gone / unreadable — mark sent so we do not retry forever.
-        await supabase
-          .from("event_reminders")
-          .update({ sent_at: nowIso })
-          .eq("id", reminder.id)
-          .is("sent_at", null);
+        await markReminderSent(supabase, reminder.id, nowIso);
         continue;
       }
 
-      const event = eventData as EventRow;
+      const event = eventData;
+      const recurrence = recurrenceRuleFromEventColumns(event);
 
       const { data: familyData } = await supabase
         .from("families")
@@ -186,6 +361,14 @@ Deno.serve(async (request: Request) => {
 
       const family = familyData as FamilyRow | null;
       const timeZone = family?.timezone || "America/Chicago";
+
+      const occurrenceDate = isRecurringRule(recurrence)
+        ? occurrenceDateFromRemindAt({
+          remindAt: reminder.remind_at,
+          offsetMinutes: reminder.offset_minutes,
+          timeZone,
+        })
+        : event.start_date;
 
       const { data: members, error: membersError } = await supabase
         .from("family_members")
@@ -200,11 +383,7 @@ Deno.serve(async (request: Request) => {
 
       const userIds = ((members ?? []) as MemberRow[]).map((row) => row.user_id);
       if (userIds.length === 0) {
-        await supabase
-          .from("event_reminders")
-          .update({ sent_at: nowIso })
-          .eq("id", reminder.id)
-          .is("sent_at", null);
+        await markReminderSent(supabase, reminder.id, nowIso);
         continue;
       }
 
@@ -222,25 +401,24 @@ Deno.serve(async (request: Request) => {
       const subs = (subscriptions ?? []) as SubscriptionRow[];
       if (subs.length === 0) {
         // Nobody subscribed — complete the reminder so it is not retried forever.
-        await supabase
-          .from("event_reminders")
-          .update({ sent_at: nowIso })
-          .eq("id", reminder.id)
-          .is("sent_at", null);
+        await markReminderSent(supabase, reminder.id, nowIso);
         continue;
       }
 
       const title = `${event.title}${reminderPhrase(reminder.offset_minutes)}`;
       const body = formatReminderNotificationBody({
-        startDate: event.start_date,
+        startDate: occurrenceDate,
         startTime: event.start_time,
         timeZone,
       });
+      const url = isRecurringRule(recurrence)
+        ? `/events/${event.id}?on=${occurrenceDate}`
+        : `/events/${event.id}`;
       const payload = JSON.stringify({
         title,
         body,
         eventId: event.id,
-        url: `/events/${event.id}`,
+        url,
       });
 
       let successCount = 0;
@@ -279,15 +457,19 @@ Deno.serve(async (request: Request) => {
         }
       }
 
-      // Mark sent only when at least one push succeeded, or every failure was
+      // Mark complete only when at least one push succeeded, or every failure was
       // a gone/expired subscription (nothing left to deliver). Temporary errors
       // leave sent_at null so the next cron can retry.
       if (successCount > 0 || transientFailureCount === 0) {
-        await supabase
-          .from("event_reminders")
-          .update({ sent_at: new Date().toISOString() })
-          .eq("id", reminder.id)
-          .is("sent_at", null);
+        await completeReminderAfterDelivery({
+          supabase,
+          reminder,
+          event,
+          recurrence,
+          occurrenceDate,
+          timeZone,
+          nowIso: new Date().toISOString(),
+        });
       } else {
         deferredCount += 1;
         console.warn(

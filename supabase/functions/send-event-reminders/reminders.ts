@@ -72,6 +72,45 @@ export function zonedLocalDateTimeToUtc(
   return new Date(utcMs);
 }
 
+/**
+ * Compute UTC remind_at for an event in the family's IANA timezone.
+ * All-day events (no start time) use 9:00 AM local family time.
+ */
+export function calculateRemindAtUtc(input: {
+  startDate: string;
+  startTime?: string | null;
+  offsetMinutes: number;
+  timeZone: string;
+}): Date {
+  const localTime = input.startTime?.trim() || ALL_DAY_REMINDER_LOCAL_TIME;
+  const eventUtc = zonedLocalDateTimeToUtc(
+    input.startDate,
+    localTime,
+    input.timeZone,
+  );
+  return new Date(eventUtc.getTime() - input.offsetMinutes * 60_000);
+}
+
+/**
+ * Derive the occurrence civil date this reminder targets from remind_at + offset
+ * in the family timezone (YYYY-MM-DD).
+ */
+export function occurrenceDateFromRemindAt(input: {
+  remindAt: string;
+  offsetMinutes: number;
+  timeZone: string;
+}): string {
+  const occurrenceUtc = new Date(
+    new Date(input.remindAt).getTime() + input.offsetMinutes * 60_000,
+  );
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: input.timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(occurrenceUtc);
+}
+
 /** Notification body using family-local civil time (matches HomeLoop display). */
 export function formatReminderNotificationBody(input: {
   startDate: string;

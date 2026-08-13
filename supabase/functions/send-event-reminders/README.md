@@ -26,10 +26,11 @@ Requests without a matching bearer token receive `401 Unauthorized`.
 
 ## Deploy (Dashboard)
 
-Create Edge Function `send-event-reminders` with these two files only:
+Create Edge Function `send-event-reminders` with these files only:
 
 - `index.ts`
 - `reminders.ts`
+- `recurrence.ts`
 
 No `_shared` folder is required. Disable JWT verification if Cron will invoke the
 function (same as CLI `--no-verify-jwt`).
@@ -54,6 +55,11 @@ In Supabase Dashboard → Edge Functions → Schedules (or Database → Cron):
 
 - Notification body times use the same family-timezone conversion as `/utils/reminders.ts`
   (local copy lives in `reminders.ts` next to `index.ts`).
-- `sent_at` is set after at least one successful push, or when there is nothing
-  left to deliver (no subscribers / only gone endpoints). Temporary push
-  failures leave `sent_at` null so Cron can retry.
+- Recurrence expansion helpers live in `recurrence.ts` (copied from `/utils/recurrence.ts`;
+  invalid monthly/yearly days are skipped, not clamped).
+- One-time events: `sent_at` is set after successful delivery (or when nothing is left
+  to deliver). Temporary push failures leave `sent_at` null so Cron can retry.
+- Recurring series: after successful delivery, advance `remind_at` to the next
+  occurrence, set `last_reminded_occurrence_date`, and keep `sent_at` null. If there
+  is no next occurrence (end date / exceptions), set `sent_at`.
+- Notification URL includes `?on=YYYY-MM-DD` for recurring occurrences.
