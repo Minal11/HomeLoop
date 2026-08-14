@@ -39,5 +39,6 @@ export type FamilyMemberDbRow = {
 export type ProfileRow = {
   id: string;
   display_name: string;
+  has_completed_onboarding?: boolean;
   created_at: string;
 };

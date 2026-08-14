@@ -11,6 +11,9 @@ import {
 import EmptyState from "@/components/EmptyState";
 import EventCard from "@/components/EventCard";
 import FamilyOnboarding from "@/components/FamilyOnboarding";
+import HowHomeLoopWorks, {
+  type HowHomeLoopWorksMode,
+} from "@/components/HowHomeLoopWorks";
 import { HeartButton, HeartLink } from "@/components/HeartButton";
 import HomeLoopName from "@/components/HomeLoopName";
 import ProfileMenu from "@/components/ProfileMenu";
@@ -20,6 +23,7 @@ import {
 } from "@/lib/categories";
 import { getCurrentFamily } from "@/lib/families";
 import { getEvents } from "@/lib/events";
+import { hasCompletedHomeLoopOnboarding } from "@/lib/onboarding";
 import { eventListKey } from "@/lib/recurrence-map";
 import type { EventSection, FamilyEvent } from "@/types/event";
 import { getNextEvent, groupEventsByRelativeDay, filterEvents } from "@/utils/events";
@@ -37,6 +41,16 @@ export default function HomeScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [tourOpen, setTourOpen] = useState(false);
+  const [tourMode, setTourMode] = useState<HowHomeLoopWorksMode>("replay");
+  const [tourKey, setTourKey] = useState(0);
+  const onboardingCheckedRef = useRef(false);
+
+  function openTour(mode: HowHomeLoopWorksMode) {
+    setTourMode(mode);
+    setTourKey((current) => current + 1);
+    setTourOpen(true);
+  }
 
   const isFetchingRef = useRef(false);
   const pullStartYRef = useRef<number | null>(null);
@@ -194,6 +208,30 @@ export default function HomeScreen() {
     };
   }, [refreshEvents]);
 
+  useEffect(() => {
+    if (loadState !== "ready" || onboardingCheckedRef.current) {
+      return;
+    }
+
+    onboardingCheckedRef.current = true;
+    let cancelled = false;
+
+    void hasCompletedHomeLoopOnboarding()
+      .then((completed) => {
+        if (cancelled || completed) {
+          return;
+        }
+        openTour("first-time");
+      })
+      .catch((error: unknown) => {
+        console.error(error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadState]);
+
   function canPullToRefresh() {
     if (typeof window === "undefined") {
       return false;
@@ -311,7 +349,11 @@ export default function HomeScreen() {
             Keep your family in the loop.
           </p>
         </div>
-        <ProfileMenu />
+        <ProfileMenu
+          onHowHomeLoopWorks={() => {
+            openTour("replay");
+          }}
+        />
       </header>
 
       <main className="mt-8 flex flex-1 flex-col">
@@ -459,6 +501,13 @@ export default function HomeScreen() {
           </HeartLink>
         </div>
       </div>
+
+      <HowHomeLoopWorks
+        key={tourKey}
+        open={tourOpen}
+        mode={tourMode}
+        onClose={() => setTourOpen(false)}
+      />
     </div>
   );
 }

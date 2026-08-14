@@ -17,6 +17,8 @@ import { getAuthErrorMessage } from "@/utils/auth-errors";
 
 type ProfileMenuProps = {
   className?: string;
+  /** Opens the How HomeLoop Works product tour. */
+  onHowHomeLoopWorks?: () => void;
 };
 
 type MenuPosition = {
@@ -36,7 +38,10 @@ function getMenuPosition(button: HTMLButtonElement): MenuPosition {
   };
 }
 
-export default function ProfileMenu({ className }: ProfileMenuProps) {
+export default function ProfileMenu({
+  className,
+  onHowHomeLoopWorks,
+}: ProfileMenuProps) {
   const router = useRouter();
   const menuId = useId();
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -162,6 +167,17 @@ export default function ProfileMenu({ className }: ProfileMenuProps) {
             <MenuLink href="/categories" onNavigate={closeMenu}>
               Categories
             </MenuLink>
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => {
+                closeMenu();
+                onHowHomeLoopWorks?.();
+              }}
+              className="flex w-full items-center px-4 py-2.5 text-left text-sm font-bold text-[#2a2118] transition hover:bg-[#f3ebe0] focus-visible:outline-none focus-visible:bg-[#f3ebe0]"
+            >
+              How HomeLoop Works
+            </button>
 
             <div
               role="separator"

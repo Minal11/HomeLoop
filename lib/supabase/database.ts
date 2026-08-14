@@ -109,11 +109,13 @@ export type Database = {
         Insert: {
           id: string;
           display_name: string;
+          has_completed_onboarding?: boolean;
           created_at?: string;
         };
         Update: {
           id?: string;
           display_name?: string;
+          has_completed_onboarding?: boolean;
           created_at?: string;
         };
         Relationships: [];
