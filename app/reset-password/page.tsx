@@ -4,7 +4,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 
 import { HeartButton, HeartLink } from "@/components/HeartButton";
-import HomeLoopWordmark from "@/components/HomeLoopWordmark";
 import PasswordField from "@/components/PasswordField";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
@@ -236,7 +235,9 @@ export default function ResetPasswordPage() {
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 py-10 sm:max-w-lg">
       <header className="animate-fade-up mb-8 text-center sm:text-left">
-        <HomeLoopWordmark as="h1" />
+        <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
+          HomeLoop
+        </h1>
         <p className="mt-2 text-base text-muted sm:text-lg">
           Choose a new password
         </p>

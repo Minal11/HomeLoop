@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
+import Heart from "@/components/Heart";
 import { HeartButton } from "@/components/HeartButton";
-import HomeLoopWordmark from "@/components/HomeLoopWordmark";
 import { createFamily, joinFamilyByInviteCode } from "@/lib/families";
 
 type Mode = "choose" | "create" | "join";
@@ -83,13 +83,10 @@ export default function FamilyOnboarding({
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 py-10 sm:max-w-lg">
       <header className="animate-fade-up text-center sm:text-left">
         <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          <span className="mr-2">Welcome to</span>
-          <HomeLoopWordmark
-            as="span"
-            textClassName="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl"
-            withHeart
-            heartSize={18}
-            heartClassName="ml-2 inline-block translate-y-[-0.15em] opacity-80"
+          Welcome to HomeLoop
+          <Heart
+            size={18}
+            className="ml-2 inline-block translate-y-[-0.15em] opacity-80"
           />
         </h1>
         <p className="mt-2 text-base text-muted sm:text-lg">
