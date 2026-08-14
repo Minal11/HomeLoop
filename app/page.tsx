@@ -13,7 +13,7 @@ import EmptyState from "@/components/EmptyState";
 import EventCard from "@/components/EventCard";
 import FamilyOnboarding from "@/components/FamilyOnboarding";
 import Heart from "@/components/Heart";
-import SignOutButton from "@/components/SignOutButton";
+import ProfileMenu from "@/components/ProfileMenu";
 import { getCurrentFamily } from "@/lib/families";
 import { getEvents } from "@/lib/events";
 import { eventListKey } from "@/lib/recurrence-map";
@@ -281,16 +281,8 @@ export default function Home() {
           <p className="mt-2 max-w-xs text-base text-muted sm:text-lg">
             Keep your family in the loop.
           </p>
-          <nav className="mt-3 flex items-center gap-3">
-            <Link
-              href="/family"
-              className="text-sm font-bold text-accent transition hover:text-accent-deep"
-            >
-              Family
-            </Link>
-          </nav>
         </div>
-        <SignOutButton />
+        <ProfileMenu />
       </header>
 
       <main className="mt-8 flex flex-1 flex-col">
