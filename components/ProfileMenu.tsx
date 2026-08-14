@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useRef, useState } from "react";
+import {
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { createPortal } from "react-dom";
 
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { getAuthErrorMessage } from "@/utils/auth-errors";
@@ -11,13 +18,53 @@ type ProfileMenuProps = {
   className?: string;
 };
 
+type MenuPosition = {
+  top: number;
+  right: number;
+};
+
+function subscribe() {
+  return () => {};
+}
+
+function getMenuPosition(button: HTMLButtonElement): MenuPosition {
+  const rect = button.getBoundingClientRect();
+  return {
+    top: rect.bottom + 8,
+    right: Math.max(window.innerWidth - rect.right, 12),
+  };
+}
+
 export default function ProfileMenu({ className }: ProfileMenuProps) {
   const router = useRouter();
   const menuId = useId();
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState<MenuPosition | null>(null);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const isClient = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
+
+  function openMenu() {
+    const button = buttonRef.current;
+    if (!button) {
+      return;
+    }
+    setErrorMessage(null);
+    setPosition(getMenuPosition(button));
+    setOpen(true);
+  }
+
+  function closeMenu() {
+    setOpen(false);
+    setPosition(null);
+  }
 
   useEffect(() => {
     if (!open) {
@@ -26,26 +73,40 @@ export default function ProfileMenu({ className }: ProfileMenuProps) {
 
     function handlePointerDown(event: PointerEvent) {
       const target = event.target as Node | null;
-      if (!rootRef.current || !target) {
+      if (!target) {
         return;
       }
-      if (!rootRef.current.contains(target)) {
-        setOpen(false);
+      if (rootRef.current?.contains(target) || menuRef.current?.contains(target)) {
+        return;
       }
+      closeMenu();
     }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         event.preventDefault();
-        setOpen(false);
+        closeMenu();
       }
+    }
+
+    function handleReposition() {
+      const button = buttonRef.current;
+      if (!button) {
+        return;
+      }
+      setPosition(getMenuPosition(button));
     }
 
     document.addEventListener("pointerdown", handlePointerDown);
     document.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("resize", handleReposition);
+    window.addEventListener("scroll", handleReposition, true);
+
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("resize", handleReposition);
+      window.removeEventListener("scroll", handleReposition, true);
     };
   }, [open]);
 
@@ -68,7 +129,7 @@ export default function ProfileMenu({ className }: ProfileMenuProps) {
         return;
       }
 
-      setOpen(false);
+      closeMenu();
       router.replace("/login");
       router.refresh();
     } catch (error) {
@@ -78,66 +139,85 @@ export default function ProfileMenu({ className }: ProfileMenuProps) {
     }
   }
 
+  const menu =
+    open && isClient && position
+      ? createPortal(
+          <div
+            ref={menuRef}
+            id={menuId}
+            role="menu"
+            aria-label="Profile menu"
+            style={{
+              position: "fixed",
+              top: position.top,
+              right: position.right,
+              zIndex: 200,
+            }}
+            className="w-56 rounded-2xl border border-[#4a342033] bg-white py-1.5 shadow-[0_18px_40px_rgba(58,36,18,0.18)]"
+          >
+            <MenuLink href="/family" onNavigate={closeMenu}>
+              Manage Family
+            </MenuLink>
+            <MenuLink href="/categories" onNavigate={closeMenu}>
+              Categories
+            </MenuLink>
+            <MenuLink href="/settings" onNavigate={closeMenu}>
+              Settings
+            </MenuLink>
+
+            <div
+              role="separator"
+              className="my-1.5 border-t border-[#4a342033]"
+            />
+
+            <button
+              type="button"
+              role="menuitem"
+              disabled={isSigningOut}
+              aria-busy={isSigningOut}
+              onClick={() => void handleSignOut()}
+              className="flex w-full items-center px-4 py-2.5 text-left text-sm font-bold text-[#d6455d] transition hover:bg-[#f5c4cd]/50 focus-visible:outline-none focus-visible:bg-[#f5c4cd]/50 disabled:cursor-not-allowed disabled:opacity-70"
+            >
+              {isSigningOut ? "Signing out…" : "Sign Out"}
+            </button>
+
+            {errorMessage ? (
+              <p
+                role="alert"
+                className="px-4 pb-2 text-xs font-semibold text-[#d6455d]"
+              >
+                {errorMessage}
+              </p>
+            ) : null}
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
-    <div ref={rootRef} className={["relative", className].filter(Boolean).join(" ")}>
+    <div
+      ref={rootRef}
+      className={["relative z-50", className].filter(Boolean).join(" ")}
+    >
       <button
+        ref={buttonRef}
         type="button"
         aria-label="Open profile menu"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={menuId}
         onClick={() => {
-          setErrorMessage(null);
-          setOpen((current) => !current);
+          if (open) {
+            closeMenu();
+          } else {
+            openMenu();
+          }
         }}
-        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-surface-border bg-white/85 text-foreground shadow-[var(--shadow)] transition hover:border-accent/30 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
+        className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-surface-border bg-white text-[#2a2118] shadow-[var(--shadow)] transition hover:border-accent/30 hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
       >
         <ProfileIcon />
       </button>
-
-      {open ? (
-        <div
-          id={menuId}
-          role="menu"
-          aria-label="Profile menu"
-          className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-2xl border border-surface-border bg-[#fffaf4] py-1.5 shadow-[0_18px_40px_rgba(58,36,18,0.16)]"
-        >
-          <MenuLink href="/family" onNavigate={() => setOpen(false)}>
-            Manage Family
-          </MenuLink>
-          <MenuLink href="/categories" onNavigate={() => setOpen(false)}>
-            Categories
-          </MenuLink>
-          <MenuLink href="/settings" onNavigate={() => setOpen(false)}>
-            Settings
-          </MenuLink>
-
-          <div
-            role="separator"
-            className="my-1.5 border-t border-surface-border"
-          />
-
-          <button
-            type="button"
-            role="menuitem"
-            disabled={isSigningOut}
-            aria-busy={isSigningOut}
-            onClick={() => void handleSignOut()}
-            className="flex w-full items-center px-4 py-2.5 text-left text-sm font-bold text-accent transition hover:bg-accent-soft/35 focus-visible:outline-none focus-visible:bg-accent-soft/35 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {isSigningOut ? "Signing out…" : "Sign Out"}
-          </button>
-
-          {errorMessage ? (
-            <p
-              role="alert"
-              className="px-4 pb-2 text-xs font-semibold text-accent"
-            >
-              {errorMessage}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
+      {menu}
     </div>
   );
 }
@@ -156,7 +236,7 @@ function MenuLink({
       href={href}
       role="menuitem"
       onClick={onNavigate}
-      className="flex w-full items-center px-4 py-2.5 text-sm font-bold text-foreground transition hover:bg-white/80 focus-visible:outline-none focus-visible:bg-white/80"
+      className="flex w-full items-center px-4 py-2.5 text-sm font-bold text-[#2a2118] transition hover:bg-[#f3ebe0] focus-visible:outline-none focus-visible:bg-[#f3ebe0]"
     >
       {children}
     </Link>
