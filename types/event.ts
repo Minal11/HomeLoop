@@ -44,7 +44,8 @@ export type FamilyEvent = {
    * such as "Ankush + Minal" from earlier multi-assign writes.
    */
   assignedTo: string;
-  category: EventCategory;
+  /** Category name (family-managed; defaults match EVENT_CATEGORIES). */
+  category: string;
   /** Display / legacy location text (manual or place name). */
   location?: string;
   locationName?: string;

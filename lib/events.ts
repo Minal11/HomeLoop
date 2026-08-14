@@ -11,8 +11,6 @@ import {
 } from "@/lib/reminders";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import {
-  EVENT_CATEGORIES,
-  type EventCategory,
   type EventRow,
   type FamilyEvent,
   type NewFamilyEventInput,
@@ -30,10 +28,6 @@ import {
   isRecurringRule,
   normalizeRecurrenceRule,
 } from "@/utils/recurrence";
-
-function isEventCategory(value: string): value is EventCategory {
-  return (EVENT_CATEGORIES as readonly string[]).includes(value);
-}
 
 /** Postgres `time` often returns HH:MM:SS — keep HH:MM for the UI. */
 function normalizeTime(value: string | null): string | undefined {
@@ -99,8 +93,9 @@ export function mapEventRowToFamilyEvent(row: EventRow): FamilyEvent {
     throw new Error("Event is missing who’s involved.");
   }
 
-  if (!isEventCategory(row.category)) {
-    throw new Error(`Unexpected category value: ${row.category}`);
+  const category = row.category?.trim();
+  if (!category) {
+    throw new Error("Event is missing a category.");
   }
 
   const recurrence = mapRecurrenceFromRow(row);
@@ -113,7 +108,7 @@ export function mapEventRowToFamilyEvent(row: EventRow): FamilyEvent {
     endDate: row.end_date ?? undefined,
     endTime: normalizeTime(row.end_time),
     assignedTo,
-    category: row.category,
+    category,
     location: normalizeOptionalText(row.location),
     locationName: normalizeOptionalText(row.location_name),
     locationAddress: normalizeOptionalText(row.location_address),

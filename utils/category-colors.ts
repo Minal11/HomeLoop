@@ -4,8 +4,8 @@ import {
 } from "@/types/event";
 
 /**
- * Canonical base color per HomeLoop category.
- * Same category name always resolves to the same hex.
+ * Canonical base color per HomeLoop default category.
+ * Same category name always resolves to the same hex when no family color map exists.
  */
 export const CATEGORY_BASE_COLORS: Record<EventCategory, string> = {
   Appointment: "#C45C6A",
@@ -83,7 +83,11 @@ export function mixWithBlack(hex: string, blackAmount: number): string {
 
 export function getCategoryBaseColor(
   category: string | null | undefined,
+  colorMap?: Record<string, string> | null,
 ): string {
+  if (category && colorMap?.[category]) {
+    return colorMap[category];
+  }
   if (
     category &&
     (EVENT_CATEGORIES as readonly string[]).includes(category)
@@ -99,8 +103,9 @@ export function getCategoryBaseColor(
  */
 export function getCategoryStyles(
   category: string | null | undefined,
+  colorMap?: Record<string, string> | null,
 ): CategoryStyles {
-  const accentColor = getCategoryBaseColor(category);
+  const accentColor = getCategoryBaseColor(category, colorMap);
 
   return {
     accentColor,

@@ -14,6 +14,10 @@ import EventCard from "@/components/EventCard";
 import FamilyOnboarding from "@/components/FamilyOnboarding";
 import Heart from "@/components/Heart";
 import ProfileMenu from "@/components/ProfileMenu";
+import {
+  buildCategoryColorMap,
+  ensureFamilyCategories,
+} from "@/lib/categories";
 import { getCurrentFamily } from "@/lib/families";
 import { getEvents } from "@/lib/events";
 import { eventListKey } from "@/lib/recurrence-map";
@@ -26,6 +30,9 @@ const PULL_THRESHOLD_PX = 72;
 
 export default function Home() {
   const [events, setEvents] = useState<FamilyEvent[]>([]);
+  const [categoryColorMap, setCategoryColorMap] = useState<
+    Record<string, string>
+  >({});
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [pullDistance, setPullDistance] = useState(0);
@@ -47,12 +54,20 @@ export default function Home() {
       const family = await getCurrentFamily();
       if (!family) {
         setEvents([]);
+        setCategoryColorMap({});
         setLoadState("no-family");
         return;
       }
 
-      const nextEvents = await getEvents();
+      const [nextEvents, categories] = await Promise.all([
+        getEvents(),
+        ensureFamilyCategories().catch((error: unknown) => {
+          console.error(error);
+          return [];
+        }),
+      ]);
       setEvents(nextEvents);
+      setCategoryColorMap(buildCategoryColorMap(categories));
       setLoadState("ready");
     } catch (error) {
       console.error(error);
@@ -79,12 +94,20 @@ export default function Home() {
       const family = await getCurrentFamily();
       if (!family) {
         setEvents([]);
+        setCategoryColorMap({});
         setLoadState("no-family");
         return;
       }
 
-      const nextEvents = await getEvents();
+      const [nextEvents, categories] = await Promise.all([
+        getEvents(),
+        ensureFamilyCategories().catch((error: unknown) => {
+          console.error(error);
+          return [];
+        }),
+      ]);
       setEvents(nextEvents);
+      setCategoryColorMap(buildCategoryColorMap(categories));
       setLoadState("ready");
     } catch (error) {
       console.error(error);
@@ -362,6 +385,7 @@ export default function Home() {
                   <EventCard
                     event={event}
                     index={index}
+                    categoryColorMap={categoryColorMap}
                     onDeleted={() => void refreshEvents()}
                   />
                 </li>
@@ -376,6 +400,7 @@ export default function Home() {
                   event={nextEvent}
                   variant="next"
                   index={0}
+                  categoryColorMap={categoryColorMap}
                   onDeleted={() => void refreshEvents()}
                 />
               </section>
@@ -399,6 +424,7 @@ export default function Home() {
                       <EventCard
                         event={event}
                         index={index + 1}
+                        categoryColorMap={categoryColorMap}
                         onDeleted={() => void refreshEvents()}
                       />
                     </li>

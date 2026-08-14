@@ -28,6 +28,8 @@ type EventCardProps = {
   event: FamilyEvent;
   index?: number;
   variant?: "default" | "next";
+  /** Family category name → hex color map for card/badge theming. */
+  categoryColorMap?: Record<string, string> | null;
   /** Called after a successful swipe-confirmed delete so lists can refresh. */
   onDeleted?: (eventId: string) => void;
 };
@@ -43,13 +45,14 @@ export default function EventCard({
   event,
   index = 0,
   variant = "default",
+  categoryColorMap = null,
   onDeleted,
 }: EventCardProps) {
   const router = useRouter();
   const reactId = useId();
   const cardKey = `${eventListKey(event)}-${reactId}`;
   const isRecurring = isRecurringRule(event.recurrence);
-  const categoryStyles = getCategoryStyles(event.category);
+  const categoryStyles = getCategoryStyles(event.category, categoryColorMap);
 
   const isNext = variant === "next";
   const dateLabel = formatEventDate(event);
@@ -361,7 +364,10 @@ export default function EventCard({
             </div>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <CategoryBadge category={event.category} />
+              <CategoryBadge
+                category={event.category}
+                colorMap={categoryColorMap}
+              />
               {locationLabel ? (
                 <button
                   type="button"

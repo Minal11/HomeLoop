@@ -7,6 +7,7 @@ import type {
 import type { EventReminderRow, PushSubscriptionRow } from "@/types/reminder";
 import type { EventExceptionRow } from "@/types/recurrence";
 import type { ShortcutTokenRow } from "@/types/shortcut";
+import type { FamilyCategoryRow } from "@/types/category";
 
 export type Database = {
   public: {
@@ -198,6 +199,28 @@ export type Database = {
           created_at?: string;
           last_used_at?: string | null;
           revoked_at?: string | null;
+        };
+        Relationships: [];
+      };
+      family_categories: {
+        Row: FamilyCategoryRow;
+        Insert: {
+          id?: string;
+          family_id: string;
+          name: string;
+          color: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          family_id?: string;
+          name?: string;
+          color?: string;
+          sort_order?: number;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };

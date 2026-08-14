@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useEffect,
   useId,
   useState,
   type FormEvent,
@@ -10,10 +11,10 @@ import {
 import LocationAutocomplete, {
   type LocationAutocompleteValue,
 } from "@/components/LocationAutocomplete";
+import { ensureFamilyCategories } from "@/lib/categories";
 import {
   EVENT_CATEGORIES,
   FAMILY_MEMBERS,
-  type EventCategory,
   type FamilyEvent,
   type NewFamilyEventInput,
 } from "@/types/event";
@@ -36,7 +37,7 @@ export type EventFormValues = {
   endDate: string;
   endTime: string;
   assignedTo: string;
-  category: EventCategory | "";
+  category: string;
   location: string;
   locationName: string;
   locationAddress: string;
@@ -311,7 +312,7 @@ export function toNewFamilyEventInput(
     endDate,
     endTime: values.endTime || undefined,
     assignedTo: values.assignedTo,
-    category: values.category as EventCategory,
+    category: values.category,
     location: values.location.trim() || undefined,
     locationName: values.locationName.trim() || undefined,
     locationAddress: values.locationAddress.trim() || undefined,
@@ -341,6 +342,35 @@ export default function EventForm({
   const [touchedSubmit, setTouchedSubmit] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([
+    ...EVENT_CATEGORIES,
+  ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void ensureFamilyCategories()
+      .then((rows) => {
+        if (cancelled || rows.length === 0) {
+          return;
+        }
+        const names = rows.map((row) => row.name);
+        setCategoryOptions(() => {
+          const selected = values.category;
+          if (selected && !names.includes(selected)) {
+            return [...names, selected];
+          }
+          return names;
+        });
+      })
+      .catch((error: unknown) => {
+        console.error(error);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // Only load once on mount; keep selected category even if missing from list.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const locationValue: LocationAutocompleteValue = {
     text: values.location,
@@ -559,13 +589,11 @@ export default function EventForm({
           aria-describedby={
             errors.category ? `${formId}-category-error` : undefined
           }
-          onChange={(event) =>
-            updateField("category", event.target.value as EventCategory | "")
-          }
+          onChange={(event) => updateField("category", event.target.value)}
           className={inputClassName(Boolean(errors.category))}
         >
           <option value="">Select a category</option>
-          {EVENT_CATEGORIES.map((category) => (
+          {categoryOptions.map((category) => (
             <option key={category} value={category}>
               {category}
             </option>

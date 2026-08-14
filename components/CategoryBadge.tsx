@@ -1,12 +1,15 @@
-import type { EventCategory } from "@/types/event";
 import { getCategoryStyles } from "@/utils/category-colors";
 
 type CategoryBadgeProps = {
-  category: EventCategory | string;
+  category: string;
+  colorMap?: Record<string, string> | null;
 };
 
-export default function CategoryBadge({ category }: CategoryBadgeProps) {
-  const styles = getCategoryStyles(category);
+export default function CategoryBadge({
+  category,
+  colorMap,
+}: CategoryBadgeProps) {
+  const styles = getCategoryStyles(category, colorMap);
 
   return (
     <span

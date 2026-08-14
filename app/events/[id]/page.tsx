@@ -9,6 +9,10 @@ import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
 import MapOpenDialog from "@/components/MapOpenDialog";
 import MemberBadge from "@/components/MemberBadge";
 import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
+import {
+  buildCategoryColorMap,
+  ensureFamilyCategories,
+} from "@/lib/categories";
 import { deleteEvent, getEventById } from "@/lib/events";
 import type { FamilyEvent } from "@/types/event";
 import type { RecurrenceDeleteScope } from "@/types/recurrence";
@@ -30,6 +34,9 @@ export default function EventDetailsPage() {
   const occurrenceDate = searchParams.get("on");
 
   const [event, setEvent] = useState<FamilyEvent | null>(null);
+  const [categoryColorMap, setCategoryColorMap] = useState<
+    Record<string, string>
+  >({});
   const [pageState, setPageState] = useState<PageState>("loading");
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isRecurrenceDeleteOpen, setIsRecurrenceDeleteOpen] = useState(false);
@@ -40,7 +47,13 @@ export default function EventDetailsPage() {
     setPageState("loading");
 
     try {
-      const nextEvent = await getEventById(eventId, occurrenceDate);
+      const [nextEvent, categories] = await Promise.all([
+        getEventById(eventId, occurrenceDate),
+        ensureFamilyCategories().catch((error: unknown) => {
+          console.error(error);
+          return [];
+        }),
+      ]);
       if (!nextEvent) {
         setEvent(null);
         setPageState("not-found");
@@ -48,6 +61,7 @@ export default function EventDetailsPage() {
       }
 
       setEvent(nextEvent);
+      setCategoryColorMap(buildCategoryColorMap(categories));
       setPageState("ready");
     } catch (error) {
       console.error(error);
@@ -58,8 +72,15 @@ export default function EventDetailsPage() {
   useEffect(() => {
     let cancelled = false;
 
-    void getEventById(eventId, occurrenceDate)
-      .then((nextEvent) => {
+    void (async () => {
+      try {
+        const [nextEvent, categories] = await Promise.all([
+          getEventById(eventId, occurrenceDate),
+          ensureFamilyCategories().catch((error: unknown) => {
+            console.error(error);
+            return [];
+          }),
+        ]);
         if (cancelled) {
           return;
         }
@@ -71,14 +92,15 @@ export default function EventDetailsPage() {
         }
 
         setEvent(nextEvent);
+        setCategoryColorMap(buildCategoryColorMap(categories));
         setPageState("ready");
-      })
-      .catch((error: unknown) => {
+      } catch (error) {
         console.error(error);
         if (!cancelled) {
           setPageState("error");
         }
-      });
+      }
+    })();
 
     return () => {
       cancelled = true;
@@ -131,6 +153,7 @@ export default function EventDetailsPage() {
       ) : event ? (
         <EventDetails
           event={event}
+          categoryColorMap={categoryColorMap}
           editHref={editHref}
           onDelete={() => {
             setDeleteError(null);
@@ -178,10 +201,12 @@ export default function EventDetailsPage() {
 
 function EventDetails({
   event,
+  categoryColorMap,
   editHref,
   onDelete,
 }: {
   event: FamilyEvent;
+  categoryColorMap: Record<string, string>;
   editHref: string;
   onDelete: () => void;
 }) {
@@ -233,7 +258,10 @@ function EventDetails({
               Category
             </dt>
             <dd className="mt-2">
-              <CategoryBadge category={event.category} />
+              <CategoryBadge
+                category={event.category}
+                colorMap={categoryColorMap}
+              />
             </dd>
           </div>
           {locationLabel ? (
