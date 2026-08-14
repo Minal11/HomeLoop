@@ -3,6 +3,7 @@
 import { useEffect, useId, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
+import { HeartButton } from "@/components/HeartButton";
 import type {
   RecurrenceDeleteScope,
   RecurrenceEditScope,
@@ -136,38 +137,41 @@ export default function RecurrenceScopeDialog({
           ) : null}
 
           <div className="mt-6 flex flex-col gap-3">
-            <button
+            <HeartButton
               type="button"
               disabled={isBusy}
               onClick={() => onConfirm("this")}
-              className="w-full rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white transition hover:bg-accent-deep disabled:opacity-70"
+              className="w-full"
             >
               This event only
-            </button>
-            <button
+            </HeartButton>
+            <HeartButton
               type="button"
+              variant="secondary"
               disabled={isBusy}
               onClick={() => onConfirm("future")}
-              className="w-full rounded-2xl border border-surface-border bg-white/80 px-5 py-3.5 text-base font-bold text-foreground transition hover:bg-white disabled:opacity-70"
+              className="w-full"
             >
               This and future events
-            </button>
-            <button
+            </HeartButton>
+            <HeartButton
               type="button"
+              variant="secondary"
               disabled={isBusy}
               onClick={() => onConfirm("all")}
-              className="w-full rounded-2xl border border-surface-border bg-white/80 px-5 py-3.5 text-base font-bold text-foreground transition hover:bg-white disabled:opacity-70"
+              className="w-full"
             >
               All events
-            </button>
-            <button
+            </HeartButton>
+            <HeartButton
               type="button"
+              variant="ghost"
               disabled={isBusy}
               onClick={onCancel}
-              className="w-full rounded-2xl border border-transparent px-5 py-3.5 text-base font-bold text-muted transition hover:text-foreground disabled:opacity-70"
+              className="w-full"
             >
               Cancel
-            </button>
+            </HeartButton>
           </div>
         </div>
       </div>

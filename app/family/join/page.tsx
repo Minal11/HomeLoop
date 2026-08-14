@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import Heart from "@/components/Heart";
+import { HeartButton } from "@/components/HeartButton";
 import { joinFamilyByInviteCode } from "@/lib/families";
 
 export default function JoinFamilyPage() {
@@ -82,14 +83,14 @@ export default function JoinFamilyPage() {
             {errorMessage}
           </p>
         ) : null}
-        <button
+        <HeartButton
           type="submit"
           disabled={isSubmitting}
           aria-busy={isSubmitting}
-          className="w-full rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white transition hover:bg-accent-deep disabled:opacity-70"
+          className="w-full"
         >
           {isSubmitting ? "Joining…" : "Join Family"}
-        </button>
+        </HeartButton>
       </form>
     </div>
   );

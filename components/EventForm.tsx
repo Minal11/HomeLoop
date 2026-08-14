@@ -11,6 +11,7 @@ import {
 import LocationAutocomplete, {
   type LocationAutocompleteValue,
 } from "@/components/LocationAutocomplete";
+import { HeartButton } from "@/components/HeartButton";
 import { ensureFamilyCategories } from "@/lib/categories";
 import {
   EVENT_CATEGORIES,
@@ -839,22 +840,23 @@ export default function EventForm({
 
       <div className="pointer-events-none safe-bottom fixed inset-x-0 bottom-0 z-20 flex justify-center px-5 pt-8">
         <div className="pointer-events-auto flex w-full max-w-md flex-col gap-3 sm:max-w-lg">
-          <button
+          <HeartButton
             type="submit"
             disabled={isSubmitting}
             aria-busy={isSubmitting}
-            className="w-full rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white shadow-[0_14px_28px_rgba(184,51,74,0.32)] transition duration-200 hover:bg-accent-deep active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full"
           >
             {isSubmitting ? "Saving…" : submitLabel}
-          </button>
-          <button
+          </HeartButton>
+          <HeartButton
             type="button"
+            variant="secondary"
             onClick={onCancel}
             disabled={isSubmitting}
-            className="w-full rounded-2xl border border-surface-border bg-white/80 px-5 py-3.5 text-base font-bold text-foreground transition duration-200 hover:bg-white active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full"
           >
             Cancel
-          </button>
+          </HeartButton>
         </div>
       </div>
     </form>

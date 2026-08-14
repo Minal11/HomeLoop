@@ -3,6 +3,8 @@
 import { useEffect, useId, useRef, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
+import { HeartButton } from "@/components/HeartButton";
+
 type DeleteConfirmDialogProps = {
   open: boolean;
   eventTitle: string;
@@ -160,23 +162,25 @@ export default function DeleteConfirmDialog({
           ) : null}
 
           <div className="mt-6 flex flex-col gap-3">
-            <button
+            <HeartButton
               type="button"
+              variant="danger"
               onClick={onConfirm}
               disabled={isDeleting}
               aria-busy={isDeleting}
-              className="w-full rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white transition hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-70"
+              className="w-full"
             >
               {isDeleting ? "Deleting…" : "Delete Event"}
-            </button>
-            <button
+            </HeartButton>
+            <HeartButton
               type="button"
+              variant="secondary"
               onClick={onCancel}
               disabled={isDeleting}
-              className="w-full rounded-2xl border border-surface-border bg-white/80 px-5 py-3.5 text-base font-bold text-foreground transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+              className="w-full"
             >
               Cancel
-            </button>
+            </HeartButton>
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ const SECTION_ORDER: EventSectionKey[] = [
   "tomorrow",
   "thisWeek",
   "later",
+  "past",
 ];
 
 const SECTION_LABELS: Record<EventSectionKey, string> = {
@@ -12,6 +13,7 @@ const SECTION_LABELS: Record<EventSectionKey, string> = {
   tomorrow: "Tomorrow",
   thisWeek: "This Week",
   later: "Later",
+  past: "Past events",
 };
 
 /**
@@ -166,7 +168,10 @@ export function getNextEvent(
   return upcoming[0] ?? null;
 }
 
-function getSectionKey(event: FamilyEvent, today: Date): EventSectionKey {
+function getUpcomingSectionKey(
+  event: FamilyEvent,
+  today: Date,
+): Exclude<EventSectionKey, "past"> {
   const todayStart = startOfDay(today);
   const tomorrow = addDays(todayStart, 1);
   const weekEnd = endOfWeek(todayStart);
@@ -192,6 +197,7 @@ function getSectionKey(event: FamilyEvent, today: Date): EventSectionKey {
 
 /**
  * Group by relative day using the user's local calendar date.
+ * Past / done events land in a dedicated `past` section after Later.
  * Pass `now` only for tests; production should use the default.
  */
 export function groupEventsByRelativeDay(
@@ -203,11 +209,19 @@ export function groupEventsByRelativeDay(
     tomorrow: [],
     thisWeek: [],
     later: [],
+    past: [],
   };
 
   for (const event of sortEvents(events)) {
-    buckets[getSectionKey(event, now)].push(event);
+    if (!isEventUpcoming(event, now)) {
+      buckets.past.push(event);
+      continue;
+    }
+    buckets[getUpcomingSectionKey(event, now)].push(event);
   }
+
+  // Newest past events first so the expanded list reads naturally.
+  buckets.past.sort((a, b) => eventSortValue(b) - eventSortValue(a));
 
   return SECTION_ORDER.filter((key) => buckets[key].length > 0).map((key) => ({
     key,

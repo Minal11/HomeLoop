@@ -11,6 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import Heart from "@/components/Heart";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { getAuthErrorMessage } from "@/utils/auth-errors";
 
@@ -130,7 +131,7 @@ export default function ProfileMenu({ className }: ProfileMenuProps) {
       }
 
       closeMenu();
-      router.replace("/login");
+      router.replace("/");
       router.refresh();
     } catch (error) {
       console.error(error);
@@ -156,7 +157,7 @@ export default function ProfileMenu({ className }: ProfileMenuProps) {
             className="w-56 rounded-2xl border border-[#4a342033] bg-white py-1.5 shadow-[0_18px_40px_rgba(58,36,18,0.18)]"
           >
             <MenuLink href="/family" onNavigate={closeMenu}>
-              Manage Family
+              Family
             </MenuLink>
             <MenuLink href="/categories" onNavigate={closeMenu}>
               Manage Categories
@@ -173,9 +174,10 @@ export default function ProfileMenu({ className }: ProfileMenuProps) {
               disabled={isSigningOut}
               aria-busy={isSigningOut}
               onClick={() => void handleSignOut()}
-              className="flex w-full items-center px-4 py-2.5 text-left text-sm font-bold text-[#d6455d] transition hover:bg-[#f5c4cd]/50 focus-visible:outline-none focus-visible:bg-[#f5c4cd]/50 disabled:cursor-not-allowed disabled:opacity-70"
+              className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-[#d6455d] transition hover:bg-[#f5c4cd]/50 focus-visible:outline-none focus-visible:bg-[#f5c4cd]/50 disabled:cursor-not-allowed disabled:opacity-70"
             >
               {isSigningOut ? "Signing out…" : "Sign Out"}
+              <Heart size={12} className="text-[#d6455d]" />
             </button>
 
             {errorMessage ? (

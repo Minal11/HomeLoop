@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Fraunces, Nunito } from "next/font/google";
 
+import { HeartBurstProvider } from "@/components/HeartBurst";
 import { PwaRegister } from "@/components/PwaRegister";
 
 import "./globals.css";
@@ -63,8 +64,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${nunito.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        {children}
-        <PwaRegister />
+        <HeartBurstProvider>
+          {children}
+          <PwaRegister />
+        </HeartBurstProvider>
       </body>
     </html>
   );

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import Heart from "@/components/Heart";
+import { HeartButton, HeartLink } from "@/components/HeartButton";
 import ShortcutTokensSection from "@/components/ShortcutTokensSection";
 import SignOutButton from "@/components/SignOutButton";
 import {
@@ -249,13 +250,14 @@ export default function FamilyPage() {
           <p className="font-display text-xl font-medium text-foreground">
             Couldn&apos;t load family details.
           </p>
-          <button
+          <HeartButton
             type="button"
             onClick={() => void load()}
-            className="mt-4 rounded-2xl bg-accent px-5 py-3 text-sm font-bold text-white hover:bg-accent-deep"
+            size="sm"
+            className="mt-4"
           >
             Retry
-          </button>
+          </HeartButton>
         </div>
       ) : null}
 
@@ -267,12 +269,9 @@ export default function FamilyPage() {
           <p className="text-sm text-muted">
             Create a family or join with an invite code to share events.
           </p>
-          <Link
-            href="/"
-            className="block w-full rounded-2xl bg-accent px-5 py-3.5 text-center text-base font-bold text-white hover:bg-accent-deep"
-          >
+          <HeartLink href="/" className="w-full">
             Create or Join
-          </Link>
+          </HeartLink>
         </div>
       ) : null}
 
@@ -327,26 +326,27 @@ export default function FamilyPage() {
             <div className="mt-4 flex flex-col gap-3">
               {notificationStatus !== "enabled" &&
               notificationStatus !== "unsupported" ? (
-                <button
+                <HeartButton
                   type="button"
                   disabled={
                     notificationBusy || notificationStatus === "blocked"
                   }
                   onClick={() => void handleEnableNotifications()}
-                  className="w-full rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white transition hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-70"
+                  className="w-full"
                 >
                   {notificationBusy ? "Working…" : "Enable Notifications"}
-                </button>
+                </HeartButton>
               ) : null}
               {notificationStatus === "enabled" ? (
-                <button
+                <HeartButton
                   type="button"
+                  variant="secondary"
                   disabled={notificationBusy}
                   onClick={() => void handleDisableNotifications()}
-                  className="w-full rounded-2xl border border-surface-border bg-white/80 px-5 py-3.5 text-base font-bold text-foreground transition hover:bg-white disabled:opacity-70"
+                  className="w-full"
                 >
                   {notificationBusy ? "Working…" : "Disable Notifications"}
-                </button>
+                </HeartButton>
               ) : null}
               {notificationStatus === "blocked" ? (
                 <p className="text-sm text-muted">

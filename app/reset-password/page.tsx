@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState, type FormEvent } from "react";
 
+import { HeartButton, HeartLink } from "@/components/HeartButton";
+import PasswordField from "@/components/PasswordField";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 type PageState = "checking" | "ready" | "invalid" | "success";
@@ -150,12 +151,9 @@ function ResetPasswordForm() {
         <p className="text-sm text-muted">
           Request a new link and try again.
         </p>
-        <Link
-          href="/forgot-password"
-          className="inline-flex rounded-2xl bg-accent px-5 py-3 text-sm font-bold text-white transition hover:bg-accent-deep"
-        >
+        <HeartLink href="/forgot-password" size="sm">
           Request a new reset link
-        </Link>
+        </HeartLink>
       </div>
     );
   }
@@ -169,16 +167,16 @@ function ResetPasswordForm() {
         <p className="text-sm text-muted">
           Your password has been changed. You can continue to HomeLoop.
         </p>
-        <button
+        <HeartButton
           type="button"
           onClick={() => {
             router.replace("/");
             router.refresh();
           }}
-          className="w-full rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white transition hover:bg-accent-deep"
+          className="w-full"
         >
           Continue to HomeLoop
-        </button>
+        </HeartButton>
       </div>
     );
   }
@@ -189,54 +187,31 @@ function ResetPasswordForm() {
       onSubmit={(event) => void handleSubmit(event)}
       noValidate
     >
-      <div className="flex flex-col gap-2">
-        <label htmlFor="password" className="text-sm font-bold text-foreground">
-          New Password
-        </label>
-        <input
-          id="password"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={6}
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          className={inputClassName}
-          placeholder="At least 6 characters"
-        />
-        {fieldErrors.password ? (
-          <p role="alert" className="text-sm font-semibold text-accent">
-            {fieldErrors.password}
-          </p>
-        ) : null}
-      </div>
+      <PasswordField
+        id="password"
+        name="password"
+        label="New Password"
+        autoComplete="new-password"
+        required
+        minLength={6}
+        value={password}
+        onChange={(event) => setPassword(event.target.value)}
+        placeholder="At least 6 characters"
+        error={fieldErrors.password}
+      />
 
-      <div className="flex flex-col gap-2">
-        <label
-          htmlFor="confirmPassword"
-          className="text-sm font-bold text-foreground"
-        >
-          Confirm New Password
-        </label>
-        <input
-          id="confirmPassword"
-          name="confirmPassword"
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={6}
-          value={confirmPassword}
-          onChange={(event) => setConfirmPassword(event.target.value)}
-          className={inputClassName}
-          placeholder="Re-enter your new password"
-        />
-        {fieldErrors.confirmPassword ? (
-          <p role="alert" className="text-sm font-semibold text-accent">
-            {fieldErrors.confirmPassword}
-          </p>
-        ) : null}
-      </div>
+      <PasswordField
+        id="confirmPassword"
+        name="confirmPassword"
+        label="Confirm New Password"
+        autoComplete="new-password"
+        required
+        minLength={6}
+        value={confirmPassword}
+        onChange={(event) => setConfirmPassword(event.target.value)}
+        placeholder="Re-enter your new password"
+        error={fieldErrors.confirmPassword}
+      />
 
       {errorMessage ? (
         <p role="alert" className="text-sm font-semibold text-accent">
@@ -244,14 +219,14 @@ function ResetPasswordForm() {
         </p>
       ) : null}
 
-      <button
+      <HeartButton
         type="submit"
         disabled={isSubmitting}
         aria-busy={isSubmitting}
-        className="w-full rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white shadow-[0_14px_28px_rgba(184,51,74,0.28)] transition hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-70"
+        className="w-full"
       >
         {isSubmitting ? "Updating…" : "Update Password"}
-      </button>
+      </HeartButton>
     </form>
   );
 }
@@ -284,6 +259,3 @@ export default function ResetPasswordPage() {
     </div>
   );
 }
-
-const inputClassName =
-  "w-full rounded-2xl border border-surface-border bg-white/85 px-4 py-3.5 text-base text-foreground outline-none transition placeholder:text-muted/70 focus-visible:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent/35";
