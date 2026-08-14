@@ -203,7 +203,7 @@ export default function ManageCategoriesPage() {
           ← HomeLoop
         </Link>
         <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
-          Manage Categories
+          Categories
           <Heart
             size={16}
             className="ml-2 inline-block translate-y-[-0.1em] opacity-80"
