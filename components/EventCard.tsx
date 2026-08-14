@@ -59,6 +59,7 @@ export default function EventCard({
   const timeLabel = event.startTime ? formatTime(event.startTime) : null;
   const locationLabel = getEventLocationLabel(event);
   const mapLocation = eventToMapLocation(event);
+  const notesText = event.notes?.trim() || null;
 
   const [isMapOpen, setIsMapOpen] = useState(false);
   const [offset, setOffset] = useState(0);
@@ -382,6 +383,12 @@ export default function EventCard({
                 </button>
               ) : null}
             </div>
+
+            {notesText ? (
+              <p className="mt-3 line-clamp-2 text-sm leading-snug text-muted">
+                {notesText}
+              </p>
+            ) : null}
           </article>
         </div>
       </div>
