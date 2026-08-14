@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import Heart from "@/components/Heart";
 import { HeartButton, HeartLink } from "@/components/HeartButton";
+import HomeLoopName from "@/components/HomeLoopName";
 import ShortcutTokensSection from "@/components/ShortcutTokensSection";
 import SignOutButton from "@/components/SignOutButton";
 import {
@@ -228,7 +229,7 @@ export default function FamilyPage() {
             href="/"
             className="text-sm font-bold text-muted transition hover:text-foreground"
           >
-            ← HomeLoop
+            ← <HomeLoopName />
           </Link>
           <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
             Family

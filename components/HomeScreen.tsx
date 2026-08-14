@@ -11,8 +11,8 @@ import {
 import EmptyState from "@/components/EmptyState";
 import EventCard from "@/components/EventCard";
 import FamilyOnboarding from "@/components/FamilyOnboarding";
-import Heart from "@/components/Heart";
 import { HeartButton, HeartLink } from "@/components/HeartButton";
+import HomeLoopName from "@/components/HomeLoopName";
 import ProfileMenu from "@/components/ProfileMenu";
 import {
   buildCategoryColorMap,
@@ -302,13 +302,11 @@ export default function HomeScreen() {
 
       <header className="animate-fade-up flex items-start justify-between gap-4">
         <div>
-          <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-            HomeLoop
-            <Heart
-              size={18}
-              className="ml-2 inline-block translate-y-[-0.15em] opacity-80 animate-heart-float"
-            />
-          </h1>
+          <HomeLoopName
+            as="h1"
+            className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl"
+            withHeart
+          />
           <p className="mt-2 max-w-xs text-base text-muted sm:text-lg">
             Keep your family in the loop.
           </p>

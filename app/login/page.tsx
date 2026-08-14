@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 
 import Heart from "@/components/Heart";
 import { HeartButton } from "@/components/HeartButton";
+import HomeLoopName from "@/components/HomeLoopName";
 import PasswordField from "@/components/PasswordField";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { getAuthErrorMessage } from "@/utils/auth-errors";
@@ -67,7 +68,7 @@ export default function LoginPage() {
           data-heart-burst="off"
           className="text-sm font-bold text-muted transition hover:text-foreground"
         >
-          ← HomeLoop
+          ← <HomeLoopName />
         </Link>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
           Login

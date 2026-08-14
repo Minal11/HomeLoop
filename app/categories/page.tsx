@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import Heart from "@/components/Heart";
+import HomeLoopName from "@/components/HomeLoopName";
 import {
   createFamilyCategory,
   deleteFamilyCategory,
@@ -200,7 +201,7 @@ export default function ManageCategoriesPage() {
           href="/"
           className="text-sm font-bold text-muted transition hover:text-foreground"
         >
-          ← HomeLoop
+          ← <HomeLoopName />
         </Link>
         <h1 className="mt-3 font-display text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
           Categories

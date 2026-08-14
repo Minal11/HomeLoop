@@ -6,6 +6,7 @@ import { useState, type FormEvent } from "react";
 
 import Heart from "@/components/Heart";
 import { HeartButton } from "@/components/HeartButton";
+import HomeLoopName from "@/components/HomeLoopName";
 import { joinFamilyByInviteCode } from "@/lib/families";
 
 export default function JoinFamilyPage() {
@@ -44,7 +45,7 @@ export default function JoinFamilyPage() {
           href="/"
           className="text-sm font-bold text-muted transition hover:text-foreground"
         >
-          ← HomeLoop
+          ← <HomeLoopName />
         </Link>
         <h1 className="mt-4 font-display text-4xl font-semibold tracking-tight text-foreground">
           Join Family
