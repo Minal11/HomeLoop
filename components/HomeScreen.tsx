@@ -343,6 +343,7 @@ export default function HomeScreen() {
             {searchQuery ? (
               <button
                 type="button"
+                data-heart-burst="off"
                 onClick={() => setSearchQuery("")}
                 aria-label="Clear search"
                 className="absolute inset-y-0 right-2 my-auto inline-flex h-8 w-8 items-center justify-center rounded-lg text-muted transition hover:bg-white hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/35"
