@@ -157,7 +157,7 @@ export default function ProfileMenu({ className }: ProfileMenuProps) {
             className="w-56 rounded-2xl border border-[#4a342033] bg-white py-1.5 shadow-[0_18px_40px_rgba(58,36,18,0.18)]"
           >
             <MenuLink href="/family" onNavigate={closeMenu}>
-              Manage Family
+              Family
             </MenuLink>
 
             <div
