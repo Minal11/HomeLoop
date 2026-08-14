@@ -129,3 +129,14 @@ input[type="search"]::-webkit-search-results-decoration {
   appearance: none;
   display: none;
 }
+
+/* iOS Safari: keep date/time/select inside the form frame. */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"],
+select {
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+}

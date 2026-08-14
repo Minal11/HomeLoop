@@ -296,7 +296,7 @@ export default function LocationAutocomplete({
   }
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative w-full min-w-0">
       <input
         id={id}
         name="location"

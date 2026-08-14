@@ -112,7 +112,7 @@ export default function EditEventPage() {
   }
 
   return (
-    <div className="relative mx-auto flex w-full max-w-md flex-1 flex-col px-5 pb-6 pt-6 sm:max-w-lg sm:pt-10">
+    <div className="relative mx-auto flex w-full min-w-0 max-w-md flex-1 flex-col overflow-x-clip px-5 pb-6 pt-6 sm:max-w-lg sm:pt-10">
       <header className="animate-fade-up mb-6">
         <Link
           href={detailsHref()}

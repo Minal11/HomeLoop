@@ -456,7 +456,7 @@ export default function EventForm({
     <form
       onSubmit={handleSubmit}
       noValidate
-      className="flex flex-1 flex-col gap-5 pb-28"
+      className="flex w-full min-w-0 max-w-full flex-1 flex-col gap-5 overflow-x-clip pb-28"
     >
       <Field
         id={`${formId}-title`}
@@ -478,7 +478,7 @@ export default function EventForm({
         />
       </Field>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+      <div className="grid w-full min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
         <Field
           id={`${formId}-startDate`}
           label="Start Date"
@@ -495,7 +495,7 @@ export default function EventForm({
               errors.startDate ? `${formId}-startDate-error` : undefined
             }
             onChange={(event) => updateField("startDate", event.target.value)}
-            className={inputClassName(Boolean(errors.startDate))}
+            className={dateTimeClassName(Boolean(errors.startDate))}
           />
         </Field>
 
@@ -507,12 +507,12 @@ export default function EventForm({
             value={values.startTime}
             aria-invalid={Boolean(errors.startTime)}
             onChange={(event) => updateField("startTime", event.target.value)}
-            className={inputClassName(Boolean(errors.startTime))}
+            className={dateTimeClassName(Boolean(errors.startTime))}
           />
         </Field>
       </div>
 
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+      <div className="grid w-full min-w-0 grid-cols-1 gap-5 sm:grid-cols-2">
         <Field id={`${formId}-endDate`} label="End Date" error={errors.endDate}>
           <input
             id={`${formId}-endDate`}
@@ -524,7 +524,7 @@ export default function EventForm({
               errors.endDate ? `${formId}-endDate-error` : undefined
             }
             onChange={(event) => updateField("endDate", event.target.value)}
-            className={inputClassName(Boolean(errors.endDate))}
+            className={dateTimeClassName(Boolean(errors.endDate))}
           />
         </Field>
 
@@ -539,7 +539,7 @@ export default function EventForm({
               errors.endTime ? `${formId}-endTime-error` : undefined
             }
             onChange={(event) => updateField("endTime", event.target.value)}
-            className={inputClassName(Boolean(errors.endTime))}
+            className={dateTimeClassName(Boolean(errors.endTime))}
           />
         </Field>
       </div>
@@ -561,7 +561,7 @@ export default function EventForm({
           onChange={(event) =>
             updateField("assignedTo", event.target.value)
           }
-          className={inputClassName(Boolean(errors.assignedTo))}
+          className={selectClassName(Boolean(errors.assignedTo))}
         >
           <option value="">Select a family member</option>
           {FAMILY_MEMBERS.map((member) => (
@@ -591,7 +591,7 @@ export default function EventForm({
             errors.category ? `${formId}-category-error` : undefined
           }
           onChange={(event) => updateField("category", event.target.value)}
-          className={inputClassName(Boolean(errors.category))}
+          className={selectClassName(Boolean(errors.category))}
         >
           <option value="">Select a category</option>
           {categoryOptions.map((category) => (
@@ -648,7 +648,7 @@ export default function EventForm({
               return updated;
             });
           }}
-          className={inputClassName(false)}
+          className={selectClassName(false)}
         >
           <option value="none">Does not repeat</option>
           <option value="daily">Daily</option>
@@ -661,7 +661,7 @@ export default function EventForm({
 
       {values.repeatPreset === "custom" ? (
         <div className="space-y-4 rounded-3xl border border-surface-border bg-white/55 p-4">
-          <div className="grid grid-cols-[1fr_1.2fr] gap-3">
+          <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] gap-3">
             <Field
               id={`${formId}-customInterval`}
               label="Repeat every"
@@ -687,7 +687,7 @@ export default function EventForm({
                 onChange={(event) =>
                   updateField("customUnit", event.target.value as CustomUnit)
                 }
-                className={inputClassName(false)}
+                className={selectClassName(false)}
               >
                 <option value="day">Day</option>
                 <option value="week">Week</option>
@@ -762,7 +762,7 @@ export default function EventForm({
                   event.target.value as EventFormValues["endsMode"],
                 )
               }
-              className={inputClassName(false)}
+              className={selectClassName(false)}
             >
               <option value="never">Never</option>
               <option value="on">On Date</option>
@@ -782,7 +782,7 @@ export default function EventForm({
                 onChange={(event) =>
                   updateField("recurrenceEndDate", event.target.value)
                 }
-                className={inputClassName(Boolean(errors.recurrenceEndDate))}
+                className={dateTimeClassName(Boolean(errors.recurrenceEndDate))}
               />
             </Field>
           ) : null}
@@ -801,7 +801,7 @@ export default function EventForm({
           onChange={(event) =>
             updateField("reminderOffsetMinutes", event.target.value)
           }
-          className={inputClassName(false)}
+          className={selectClassName(false)}
         >
           {REMINDER_OPTIONS.map((option) => (
             <option
@@ -865,12 +865,29 @@ export default function EventForm({
 
 function inputClassName(hasError: boolean): string {
   return [
-    "w-full rounded-2xl border bg-white/85 px-4 py-3.5 text-base text-foreground outline-none transition",
+    "box-border block w-full max-w-full min-w-0 rounded-2xl border bg-white/85 px-4 py-3.5 text-base text-foreground outline-none transition",
     "placeholder:text-muted/70",
     "focus-visible:ring-2 focus-visible:ring-accent/35 focus-visible:border-accent/50",
     hasError
       ? "border-accent/60 ring-1 ring-accent/25"
       : "border-surface-border",
+  ].join(" ");
+}
+
+/** Date/time controls need extra iOS width constraints. */
+function dateTimeClassName(hasError: boolean): string {
+  return [
+    inputClassName(hasError),
+    "appearance-none [-webkit-appearance:none] [color-scheme:light]",
+  ].join(" ");
+}
+
+function selectClassName(hasError: boolean): string {
+  return [
+    inputClassName(hasError),
+    // iOS Safari select/date controls ignore width without resetting appearance.
+    "appearance-none bg-[length:1rem] bg-[right_0.9rem_center] bg-no-repeat pr-11",
+    "bg-[url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%228%22 viewBox=%220 0 12 8%22 fill=%22none%22%3E%3Cpath d=%22M1 1.5 6 6.5 11 1.5%22 stroke=%22%236a5848%22 stroke-width=%221.8%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E')]",
   ].join(" ");
 }
 
@@ -888,7 +905,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex w-full min-w-0 flex-col gap-2">
       <label htmlFor={id} className="text-sm font-bold text-foreground">
         {label}
         {required ? (
