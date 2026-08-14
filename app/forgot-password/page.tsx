@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
 import { HeartButton } from "@/components/HeartButton";
+import HomeLoopWordmark from "@/components/HomeLoopWordmark";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { getSiteUrl } from "@/utils/app-url";
 
@@ -64,9 +65,7 @@ export default function ForgotPasswordPage() {
   return (
     <div className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-5 py-10 sm:max-w-lg">
       <header className="animate-fade-up text-center sm:text-left">
-        <h1 className="font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          HomeLoop
-        </h1>
+        <HomeLoopWordmark as="h1" />
         <p className="mt-2 text-base text-muted sm:text-lg">
           Reset your password
         </p>

@@ -1,7 +1,7 @@
 "use client";
 
 import { HeartLink } from "@/components/HeartButton";
-import Heart from "@/components/Heart";
+import HomeLoopWordmark from "@/components/HomeLoopWordmark";
 
 export default function LandingPage() {
   return (
@@ -12,13 +12,12 @@ export default function LandingPage() {
       />
 
       <header className="animate-fade-up text-center">
-        <p className="font-display text-5xl font-semibold tracking-tight text-foreground sm:text-6xl">
-          HomeLoop
-          <Heart
-            size={22}
-            className="ml-2 inline-block translate-y-[-0.12em] opacity-90 animate-heart-float"
-          />
-        </p>
+        <HomeLoopWordmark
+          as="p"
+          textClassName="font-display text-5xl font-semibold tracking-tight text-foreground sm:text-6xl"
+          heartSize={22}
+          heartClassName="ml-2 inline-block translate-y-[-0.12em] opacity-90 animate-heart-float"
+        />
         <p className="mx-auto mt-4 max-w-sm text-base text-muted sm:text-lg">
           Shared plans for the people you love — one calm place for the whole
           family.
