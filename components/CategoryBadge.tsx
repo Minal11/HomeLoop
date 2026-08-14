@@ -1,12 +1,22 @@
 import type { EventCategory } from "@/types/event";
+import { getCategoryStyles } from "@/utils/category-colors";
 
 type CategoryBadgeProps = {
-  category: EventCategory;
+  category: EventCategory | string;
 };
 
 export default function CategoryBadge({ category }: CategoryBadgeProps) {
+  const styles = getCategoryStyles(category);
+
   return (
-    <span className="inline-flex items-center rounded-full border border-surface-border bg-white/50 px-2.5 py-1 text-xs font-semibold text-muted">
+    <span
+      className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
+      style={{
+        backgroundColor: styles.badgeBackgroundColor,
+        color: styles.badgeTextColor,
+        borderColor: styles.badgeBorderColor,
+      }}
+    >
       {category}
     </span>
   );

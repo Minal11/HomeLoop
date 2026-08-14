@@ -22,6 +22,7 @@ import type { RecurrenceDeleteScope } from "@/types/recurrence";
 import { formatEventDate, formatTime } from "@/utils/events";
 import { eventToMapLocation, getEventLocationLabel } from "@/utils/maps";
 import { isRecurringRule } from "@/utils/recurrence";
+import { getCategoryStyles } from "@/utils/category-colors";
 
 type EventCardProps = {
   event: FamilyEvent;
@@ -48,6 +49,7 @@ export default function EventCard({
   const reactId = useId();
   const cardKey = `${eventListKey(event)}-${reactId}`;
   const isRecurring = isRecurringRule(event.recurrence);
+  const categoryStyles = getCategoryStyles(event.category);
 
   const isNext = variant === "next";
   const dateLabel = formatEventDate(event);
@@ -315,9 +317,15 @@ export default function EventCard({
             className={[
               "animate-soft-pop rounded-2xl border px-4 py-4 backdrop-blur-sm transition duration-200",
               isNext
-                ? "border-accent/35 bg-white shadow-[0_14px_32px_rgba(184,51,74,0.14)]"
-                : "border-surface-border bg-surface shadow-[var(--shadow)] hover:-translate-y-0.5 hover:border-accent/25",
+                ? "shadow-[0_14px_32px_rgba(184,51,74,0.12)]"
+                : "shadow-[var(--shadow)] hover:-translate-y-0.5",
             ].join(" ")}
+            style={{
+              backgroundColor: categoryStyles.backgroundColor,
+              borderColor: categoryStyles.borderColor,
+              borderLeftWidth: 5,
+              borderLeftColor: categoryStyles.accentColor,
+            }}
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
@@ -334,11 +342,14 @@ export default function EventCard({
                 >
                   {event.title}
                 </h3>
-                <p className="mt-1 text-sm font-semibold text-ember">
+                <p
+                  className="mt-1 text-sm font-semibold"
+                  style={{ color: categoryStyles.dateTimeColor }}
+                >
                   {dateLabel}
                   {timeLabel ? (
                     <>
-                      <span className="mx-1.5 text-muted/50" aria-hidden="true">
+                      <span className="mx-1.5 opacity-50" aria-hidden="true">
                         ·
                       </span>
                       <span>{timeLabel}</span>
