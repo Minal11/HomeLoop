@@ -33,7 +33,7 @@ export default function LandingPage() {
           Login
         </HeartLink>
         <HeartLink href="/signup" variant="secondary" className="w-full">
-          Sign Up / Create Account
+          Sign Up
         </HeartLink>
       </div>
     </div>

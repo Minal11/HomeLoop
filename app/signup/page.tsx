@@ -87,7 +87,7 @@ export default function SignUpPage() {
           ← HomeLoop
         </Link>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          Create Account
+          Sign Up
           <Heart
             size={18}
             className="ml-2 inline-block translate-y-[-0.15em] opacity-80 animate-heart-float"
@@ -151,7 +151,7 @@ export default function SignUpPage() {
           aria-busy={isSubmitting}
           className="w-full"
         >
-          {isSubmitting ? "Creating account…" : "Sign Up / Create Account"}
+          {isSubmitting ? "Signing up…" : "Sign Up"}
         </HeartButton>
       </form>
 

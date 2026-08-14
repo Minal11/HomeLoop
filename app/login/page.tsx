@@ -150,7 +150,7 @@ export default function LoginPage() {
           href="/signup"
           className="inline-flex items-center gap-1 font-bold text-accent transition hover:text-accent-deep"
         >
-          Create Account
+          Sign Up
           <Heart size={12} />
         </Link>
       </p>
