@@ -38,12 +38,17 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
+  const isLandingRoute = pathname === "/";
   const isLoginRoute = pathname === "/login" || pathname.startsWith("/login/");
+  const isSignupRoute =
+    pathname === "/signup" || pathname.startsWith("/signup/");
   const isShortcutApiRoute =
     pathname === "/api/shortcuts/events" ||
     pathname.startsWith("/api/shortcuts/events/");
   const isPublicAuthRoute =
+    isLandingRoute ||
     isLoginRoute ||
+    isSignupRoute ||
     pathname === "/forgot-password" ||
     pathname.startsWith("/forgot-password/") ||
     pathname === "/reset-password" ||
@@ -53,12 +58,12 @@ export async function updateSession(request: NextRequest) {
 
   if (!user && !isPublicAuthRoute) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/login";
+    redirectUrl.pathname = "/";
     redirectUrl.search = "";
     return NextResponse.redirect(redirectUrl);
   }
 
-  if (user && isLoginRoute) {
+  if (user && (isLoginRoute || isSignupRoute)) {
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/";
     redirectUrl.search = "";

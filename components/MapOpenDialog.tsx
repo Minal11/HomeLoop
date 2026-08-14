@@ -1,5 +1,6 @@
 "use client";
 
+import { HeartButton } from "@/components/HeartButton";
 import { getAppleMapsUrl, getGoogleMapsUrl, type MapLocationInput } from "@/utils/maps";
 
 type MapOpenDialogProps = {
@@ -47,31 +48,35 @@ export default function MapOpenDialog({
         <p className="mt-2 text-sm text-muted">{label}</p>
 
         <div className="mt-6 flex flex-col gap-3">
-          <a
-            href={googleUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex w-full items-center justify-center rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white transition hover:bg-accent-deep"
-            onClick={onClose}
+          <HeartButton
+            type="button"
+            className="w-full"
+            onClick={() => {
+              window.open(googleUrl, "_blank", "noopener,noreferrer");
+              onClose();
+            }}
           >
             Google Maps
-          </a>
-          <a
-            href={appleUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex w-full items-center justify-center rounded-2xl border border-surface-border bg-white/80 px-5 py-3.5 text-base font-bold text-foreground transition hover:bg-white"
-            onClick={onClose}
+          </HeartButton>
+          <HeartButton
+            type="button"
+            variant="secondary"
+            className="w-full"
+            onClick={() => {
+              window.open(appleUrl, "_blank", "noopener,noreferrer");
+              onClose();
+            }}
           >
             Apple Maps
-          </a>
-          <button
+          </HeartButton>
+          <HeartButton
             type="button"
+            variant="ghost"
             onClick={onClose}
-            className="w-full rounded-2xl border border-transparent px-5 py-3.5 text-base font-bold text-muted transition hover:text-foreground"
+            className="w-full"
           >
             Cancel
-          </button>
+          </HeartButton>
         </div>
       </div>
     </div>

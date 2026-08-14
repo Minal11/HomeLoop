@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { HeartButton } from "@/components/HeartButton";
 import {
   createShortcutToken,
   listShortcutTokens,
@@ -151,14 +152,14 @@ export default function ShortcutTokensSection() {
         Endpoint: <code className="font-semibold text-foreground">{endpoint}</code>
       </p>
 
-      <button
+      <HeartButton
         type="button"
         disabled={busy}
         onClick={() => void handleCreate()}
-        className="mt-4 w-full rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white transition hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-70"
+        className="mt-4 w-full"
       >
         {busy ? "Working…" : "Create Shortcut Access"}
-      </button>
+      </HeartButton>
 
       {plaintextToken ? (
         <div className="mt-4 rounded-2xl border border-accent/30 bg-white/85 p-4">
@@ -173,17 +174,19 @@ export default function ShortcutTokensSection() {
           <code className="mt-3 block break-all rounded-xl border border-surface-border bg-[#fffaf4] px-3 py-3 text-xs font-semibold text-foreground">
             {plaintextToken}
           </code>
-          <button
+          <HeartButton
             type="button"
+            variant="secondary"
+            size="sm"
             onClick={() => void handleCopyToken()}
-            className="mt-3 w-full rounded-2xl border border-surface-border bg-white/80 px-5 py-3 text-sm font-bold text-foreground transition hover:bg-white"
+            className="mt-3 w-full"
           >
             {copyState === "copied"
               ? "Copied"
               : copyState === "failed"
                 ? "Copy failed"
                 : "Copy token"}
-          </button>
+          </HeartButton>
         </div>
       ) : null}
 

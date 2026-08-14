@@ -101,7 +101,12 @@ export type EventRow = {
   updated_at: string;
 };
 
-export type EventSectionKey = "today" | "tomorrow" | "thisWeek" | "later";
+export type EventSectionKey =
+  | "today"
+  | "tomorrow"
+  | "thisWeek"
+  | "later"
+  | "past";
 
 export type EventSection = {
   key: EventSectionKey;

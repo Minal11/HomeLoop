@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { HeartButton, HeartLink } from "@/components/HeartButton";
 
 type EmptyStateProps = {
   href?: string;
@@ -9,9 +9,6 @@ export default function EmptyState({
   href = "/events/new",
   onAddEvent,
 }: EmptyStateProps) {
-  const className =
-    "mt-6 inline-flex items-center justify-center rounded-2xl bg-accent px-5 py-3 text-sm font-bold text-white shadow-[0_10px_22px_rgba(184,51,74,0.28)] transition duration-200 hover:bg-accent-deep active:scale-[0.98]";
-
   return (
     <div className="flex flex-col items-center rounded-3xl border border-dashed border-surface-border bg-surface px-6 py-12 text-center shadow-[var(--shadow)]">
       <p className="font-display text-2xl font-medium text-foreground">
@@ -21,13 +18,18 @@ export default function EmptyState({
         Your family calendar is all clear.
       </p>
       {onAddEvent ? (
-        <button type="button" onClick={onAddEvent} className={className}>
+        <HeartButton
+          type="button"
+          onClick={onAddEvent}
+          size="sm"
+          className="mt-6"
+        >
           + Add Event
-        </button>
+        </HeartButton>
       ) : (
-        <Link href={href} className={className}>
+        <HeartLink href={href} size="sm" className="mt-6">
           + Add Event
-        </Link>
+        </HeartLink>
       )}
     </div>
   );

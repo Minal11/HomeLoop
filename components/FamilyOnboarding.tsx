@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 
 import Heart from "@/components/Heart";
+import { HeartButton } from "@/components/HeartButton";
 import { createFamily, joinFamilyByInviteCode } from "@/lib/families";
 
 type Mode = "choose" | "create" | "join";
@@ -98,26 +99,27 @@ export default function FamilyOnboarding({
           className="animate-fade-up mt-8 space-y-3"
           style={{ animationDelay: "60ms" }}
         >
-          <button
+          <HeartButton
             type="button"
             onClick={() => {
               setMode("create");
               setErrorMessage(null);
             }}
-            className="w-full rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white shadow-[0_14px_28px_rgba(184,51,74,0.28)] transition hover:bg-accent-deep"
+            className="w-full"
           >
             Create Family
-          </button>
-          <button
+          </HeartButton>
+          <HeartButton
             type="button"
+            variant="secondary"
             onClick={() => {
               setMode("join");
               setErrorMessage(null);
             }}
-            className="w-full rounded-2xl border border-surface-border bg-white/80 px-5 py-3.5 text-base font-bold text-foreground transition hover:bg-white"
+            className="w-full"
           >
             Join Family
-          </button>
+          </HeartButton>
         </div>
       ) : null}
 
@@ -153,14 +155,14 @@ export default function FamilyOnboarding({
               {errorMessage}
             </p>
           ) : null}
-          <button
+          <HeartButton
             type="submit"
             disabled={isSubmitting}
             aria-busy={isSubmitting}
-            className="w-full rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white transition hover:bg-accent-deep disabled:opacity-70"
+            className="w-full"
           >
             {isSubmitting ? "Creating…" : "Create Family"}
-          </button>
+          </HeartButton>
           <button
             type="button"
             onClick={() => setMode("choose")}
@@ -204,14 +206,14 @@ export default function FamilyOnboarding({
               {errorMessage}
             </p>
           ) : null}
-          <button
+          <HeartButton
             type="submit"
             disabled={isSubmitting}
             aria-busy={isSubmitting}
-            className="w-full rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white transition hover:bg-accent-deep disabled:opacity-70"
+            className="w-full"
           >
             {isSubmitting ? "Joining…" : "Join Family"}
-          </button>
+          </HeartButton>
           <button
             type="button"
             onClick={() => setMode("choose")}

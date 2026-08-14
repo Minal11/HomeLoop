@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import EventForm, { familyEventToFormValues } from "@/components/EventForm";
+import { HeartLink } from "@/components/HeartButton";
 import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
 import { getEventById, updateEvent } from "@/lib/events";
 import type { FamilyEvent, NewFamilyEventInput } from "@/types/event";
@@ -138,24 +139,18 @@ export default function EditEventPage() {
           <p className="font-display text-2xl font-medium text-foreground">
             Event not found
           </p>
-          <Link
-            href="/"
-            className="mt-6 inline-flex rounded-2xl bg-accent px-5 py-3 text-sm font-bold text-white transition hover:bg-accent-deep"
-          >
+          <HeartLink href="/" size="sm" className="mt-6">
             Back to Upcoming Events
-          </Link>
+          </HeartLink>
         </div>
       ) : pageState === "error" ? (
         <div className="rounded-3xl border border-surface-border bg-surface px-5 py-10 text-center shadow-[var(--shadow)]">
           <p className="font-display text-2xl font-medium text-foreground">
             We couldn’t load this event.
           </p>
-          <Link
-            href={detailsHref()}
-            className="mt-6 inline-flex rounded-2xl bg-accent px-5 py-3 text-sm font-bold text-white transition hover:bg-accent-deep"
-          >
+          <HeartLink href={detailsHref()} size="sm" className="mt-6">
             Back to event
-          </Link>
+          </HeartLink>
         </div>
       ) : event ? (
         <EventForm

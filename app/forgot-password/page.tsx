@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
+import { HeartButton } from "@/components/HeartButton";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import { getSiteUrl } from "@/utils/app-url";
 
@@ -116,14 +117,14 @@ export default function ForgotPasswordPage() {
               </p>
             ) : null}
 
-            <button
+            <HeartButton
               type="submit"
               disabled={isSubmitting}
               aria-busy={isSubmitting}
-              className="w-full rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white shadow-[0_14px_28px_rgba(184,51,74,0.28)] transition hover:bg-accent-deep disabled:cursor-not-allowed disabled:opacity-70"
+              className="w-full"
             >
               {isSubmitting ? "Sending…" : "Send Reset Link"}
-            </button>
+            </HeartButton>
 
             <Link
               href="/login"

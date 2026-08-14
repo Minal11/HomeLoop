@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import CategoryBadge from "@/components/CategoryBadge";
 import DeleteConfirmDialog from "@/components/DeleteConfirmDialog";
+import { HeartButton, HeartLink } from "@/components/HeartButton";
 import MapOpenDialog from "@/components/MapOpenDialog";
 import MemberBadge from "@/components/MemberBadge";
 import RecurrenceScopeDialog from "@/components/RecurrenceScopeDialog";
@@ -271,25 +272,20 @@ function EventDetails({
       </div>
 
       <div className="mt-6 flex flex-col gap-3">
-        <Link
-          href={editHref}
-          className="flex w-full items-center justify-center rounded-2xl bg-accent px-5 py-3.5 text-base font-bold text-white shadow-[0_14px_28px_rgba(184,51,74,0.28)] transition hover:bg-accent-deep"
-        >
+        <HeartLink href={editHref} className="w-full">
           Edit
-        </Link>
-        <button
+        </HeartLink>
+        <HeartButton
           type="button"
+          variant="secondary"
           onClick={onDelete}
-          className="w-full rounded-2xl border border-accent/35 bg-white/80 px-5 py-3.5 text-base font-bold text-accent transition hover:bg-accent-soft/40"
+          className="w-full"
         >
           Delete
-        </button>
-        <Link
-          href="/"
-          className="flex w-full items-center justify-center rounded-2xl border border-surface-border bg-white/70 px-5 py-3.5 text-base font-bold text-foreground transition hover:bg-white"
-        >
+        </HeartButton>
+        <HeartLink href="/" variant="secondary" className="w-full">
           Back to Upcoming Events
-        </Link>
+        </HeartLink>
       </div>
 
       {mapLocation ? (
@@ -332,12 +328,9 @@ function NotFoundState() {
       <p className="mt-2 text-sm text-muted">
         This event may have been deleted or the link is incorrect.
       </p>
-      <Link
-        href="/"
-        className="mt-6 inline-flex rounded-2xl bg-accent px-5 py-3 text-sm font-bold text-white transition hover:bg-accent-deep"
-      >
+      <HeartLink href="/" size="sm" className="mt-6">
         Back to Upcoming Events
-      </Link>
+      </HeartLink>
     </div>
   );
 }
@@ -349,13 +342,9 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
         We couldn’t load this event.
       </p>
       <p className="mt-2 text-sm text-muted">Please try again in a moment.</p>
-      <button
-        type="button"
-        onClick={onRetry}
-        className="mt-6 rounded-2xl bg-accent px-5 py-3 text-sm font-bold text-white transition hover:bg-accent-deep"
-      >
+      <HeartButton type="button" onClick={onRetry} size="sm" className="mt-6">
         Retry
-      </button>
+      </HeartButton>
     </div>
   );
 }

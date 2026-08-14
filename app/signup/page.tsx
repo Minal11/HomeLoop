@@ -13,11 +13,12 @@ import { getAuthErrorMessage } from "@/utils/auth-errors";
 const inputClassName =
   "w-full rounded-2xl border border-surface-border bg-white/85 px-4 py-3.5 text-base text-foreground outline-none transition placeholder:text-muted/70 focus-visible:border-accent/50 focus-visible:ring-2 focus-visible:ring-accent/35";
 
-export default function LoginPage() {
+export default function SignUpPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -28,6 +29,7 @@ export default function LoginPage() {
 
     setIsSubmitting(true);
     setErrorMessage(null);
+    setInfoMessage(null);
 
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !password) {
@@ -36,24 +38,39 @@ export default function LoginPage() {
       return;
     }
 
+    if (password.length < 6) {
+      setErrorMessage(
+        "Please choose a stronger password (at least 6 characters).",
+      );
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const supabase = getSupabaseClient();
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signUp({
         email: trimmedEmail,
         password,
       });
 
       if (error) {
         console.error(error);
-        setErrorMessage(getAuthErrorMessage(error, "signin"));
+        setErrorMessage(getAuthErrorMessage(error, "signup"));
         return;
       }
 
-      router.replace("/");
-      router.refresh();
+      if (data.session) {
+        router.replace("/");
+        router.refresh();
+        return;
+      }
+
+      setInfoMessage(
+        "Account created. Please confirm your email, then log in.",
+      );
     } catch (error) {
       console.error(error);
-      setErrorMessage(getAuthErrorMessage(null, "signin"));
+      setErrorMessage(getAuthErrorMessage(null, "signup"));
     } finally {
       setIsSubmitting(false);
     }
@@ -70,14 +87,14 @@ export default function LoginPage() {
           ← HomeLoop
         </Link>
         <h1 className="mt-3 font-display text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          Login
+          Create Account
           <Heart
             size={18}
             className="ml-2 inline-block translate-y-[-0.15em] opacity-80 animate-heart-float"
           />
         </h1>
         <p className="mt-2 text-base text-muted sm:text-lg">
-          Welcome back to your family loop.
+          Start a shared loop for your family.
         </p>
       </header>
 
@@ -108,26 +125,23 @@ export default function LoginPage() {
           id="password"
           name="password"
           label="Password"
-          autoComplete="current-password"
+          autoComplete="new-password"
           required
           minLength={6}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           placeholder="At least 6 characters"
-          hint={
-            <Link
-              href="/forgot-password"
-              data-heart-burst="off"
-              className="text-sm font-bold text-accent transition hover:text-accent-deep"
-            >
-              Forgot password?
-            </Link>
-          }
         />
 
         {errorMessage ? (
           <p role="alert" className="text-sm font-semibold text-accent">
             {errorMessage}
+          </p>
+        ) : null}
+
+        {infoMessage ? (
+          <p role="status" className="text-sm font-semibold text-ember">
+            {infoMessage}
           </p>
         ) : null}
 
@@ -137,7 +151,7 @@ export default function LoginPage() {
           aria-busy={isSubmitting}
           className="w-full"
         >
-          {isSubmitting ? "Signing in…" : "Login"}
+          {isSubmitting ? "Creating account…" : "Sign Up / Create Account"}
         </HeartButton>
       </form>
 
@@ -145,12 +159,12 @@ export default function LoginPage() {
         className="animate-fade-up mt-6 text-center text-sm text-muted"
         style={{ animationDelay: "100ms" }}
       >
-        New here?{" "}
+        Already have an account?{" "}
         <Link
-          href="/signup"
+          href="/login"
           className="inline-flex items-center gap-1 font-bold text-accent transition hover:text-accent-deep"
         >
-          Create Account
+          Login
           <Heart size={12} />
         </Link>
       </p>

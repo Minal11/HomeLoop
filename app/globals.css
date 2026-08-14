@@ -100,3 +100,22 @@ body {
 .animate-heart-float {
   animation: heart-float 2.8s ease-in-out infinite;
 }
+
+@keyframes heart-burst-rise {
+  0% {
+    opacity: 0.95;
+    transform: translate(-50%, -50%) scale(0.7);
+  }
+  35% {
+    opacity: 1;
+    transform: translate(-50%, -120%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -220%) scale(0.85);
+  }
+}
+
+.heart-burst-float {
+  animation: heart-burst-rise 0.85s ease-out forwards;
+}
