@@ -160,7 +160,7 @@ export default function ProfileMenu({ className }: ProfileMenuProps) {
               Family
             </MenuLink>
             <MenuLink href="/categories" onNavigate={closeMenu}>
-              Manage Categories
+              Categories
             </MenuLink>
 
             <div
