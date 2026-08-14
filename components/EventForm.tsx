@@ -469,7 +469,7 @@ export default function EventForm({
           name="title"
           type="text"
           autoComplete="off"
-          placeholder="Ziva Vaccination"
+          placeholder="Add a Title"
           value={values.title}
           aria-invalid={Boolean(errors.title)}
           aria-describedby={errors.title ? `${formId}-title-error` : undefined}
