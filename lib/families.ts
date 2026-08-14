@@ -159,78 +159,110 @@ export async function createFamily(name: string): Promise<Family> {
 
   await ensureProfile(user.id, user.email);
 
-  // Retry a few times if invite_code collides
+  // Avoid insert().select() before membership exists: families SELECT RLS is
+  // membership-based, so RETURNING the new row fails for brand-new creators.
+  // Create the id client-side, insert without returning, then add ownership.
   let lastError: unknown = null;
   for (let attempt = 0; attempt < 5; attempt += 1) {
+    const familyId = crypto.randomUUID();
     const inviteCode = generateInviteCode();
-    const { data: family, error: familyError } = await supabase
-      .from("families")
-      .insert({
-        name: trimmed,
-        created_by: user.id,
-        invite_code: inviteCode,
-      })
-      .select("id, name, created_by, invite_code, timezone, created_at")
-      .single();
 
-    if (familyError || !family) {
+    const { error: familyError } = await supabase.from("families").insert({
+      id: familyId,
+      name: trimmed,
+      created_by: user.id,
+      invite_code: inviteCode,
+    });
+
+    if (familyError) {
       lastError = familyError;
-      // unique violation on invite_code → retry
-      if (familyError?.code === "23505") {
+      if (familyError.code === "23505") {
+        // Invite code (or rare id) collision — retry.
         continue;
       }
-      // Before timezone migration, fall back to legacy select.
-      if (
-        `${familyError?.message ?? ""}`.toLowerCase().includes("timezone")
-      ) {
-        const legacy = await supabase
-          .from("families")
-          .insert({
-            name: trimmed,
-            created_by: user.id,
-            invite_code: inviteCode,
-          })
-          .select("id, name, created_by, invite_code, created_at")
-          .single();
-        if (legacy.error || !legacy.data) {
-          console.error("Failed to create family:", legacy.error);
-          throw new Error("Unable to create family.");
-        }
-        const { error: memberError } = await supabase
-          .from("family_members")
-          .insert({
-            family_id: legacy.data.id,
-            user_id: user.id,
-            role: "owner",
-          });
-        if (memberError) {
-          console.error("Failed to add family owner:", memberError);
-          throw new Error(
-            "Family was created but membership failed. Please refresh.",
-          );
-        }
-        return mapFamilyRow(legacy.data as FamilyRow);
-      }
       console.error("Failed to create family:", familyError);
-      throw new Error("Unable to create family.");
+      throw new Error(friendlyCreateFamilyError(familyError));
     }
 
     const { error: memberError } = await supabase.from("family_members").insert({
-      family_id: family.id,
+      family_id: familyId,
       user_id: user.id,
       role: "owner",
     });
 
     if (memberError) {
       console.error("Failed to add family owner:", memberError);
-      throw new Error("Family was created but membership failed. Please refresh.");
+      throw new Error(
+        "Family was created but membership failed. Please try again.",
+      );
     }
 
-    return mapFamilyRow(family as FamilyRow);
+    const loaded = await loadFamilyById(supabase, familyId);
+    if (!loaded) {
+      throw new Error("Family was created but could not be loaded. Please refresh.");
+    }
+    return loaded;
   }
 
   console.error("Failed to create family after invite retries:", lastError);
-  throw new Error("Unable to create family.");
+  throw new Error(friendlyCreateFamilyError(lastError));
+}
+
+async function loadFamilyById(
+  supabase: ReturnType<typeof getSupabaseClient>,
+  familyId: string,
+): Promise<Family | null> {
+  const { data: family, error: familyError } = await supabase
+    .from("families")
+    .select("id, name, created_by, invite_code, timezone, created_at")
+    .eq("id", familyId)
+    .maybeSingle();
+
+  if (familyError) {
+    const message = `${familyError.message ?? ""}`.toLowerCase();
+    if (
+      message.includes("timezone") ||
+      message.includes("does not exist") ||
+      message.includes("could not find")
+    ) {
+      const legacy = await supabase
+        .from("families")
+        .select("id, name, created_by, invite_code, created_at")
+        .eq("id", familyId)
+        .maybeSingle();
+      if (legacy.error || !legacy.data) {
+        console.error("Failed to load created family:", legacy.error);
+        return null;
+      }
+      return mapFamilyRow(legacy.data as FamilyRow);
+    }
+    console.error("Failed to load created family:", familyError);
+    return null;
+  }
+
+  if (!family) {
+    return null;
+  }
+
+  return mapFamilyRow(family as FamilyRow);
+}
+
+function friendlyCreateFamilyError(error: unknown): string {
+  const message =
+    error && typeof error === "object" && "message" in error
+      ? String((error as { message?: string }).message ?? "")
+      : "";
+  const normalized = message.toLowerCase();
+
+  if (normalized.includes("row-level security") || normalized.includes("rls")) {
+    return "Unable to create family due to a permissions issue. Please try again.";
+  }
+
+  if (normalized.includes("not authenticated") || normalized.includes("jwt")) {
+    return "Your session has expired. Please sign in again.";
+  }
+
+  return "Unable to create family. Please try again.";
 }
 
 export async function joinFamilyByInviteCode(inviteCode: string): Promise<string> {
